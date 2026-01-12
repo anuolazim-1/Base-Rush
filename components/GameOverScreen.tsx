@@ -1,0 +1,143 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { saveScore, getHighScore } from '@/lib/firebase/scores'
+import type { Address } from 'viem'
+import type { GameState, PlayerScore } from '@/types'
+
+interface GameOverScreenProps {
+  gameState: GameState
+  walletAddress: Address
+  onNewGame: () => void
+}
+
+/**
+ * GameOverScreen displays final score and handles score submission
+ */
+export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOverScreenProps) {
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [highScore, setHighScore] = useState<number | null>(null)
+  const [isNewRecord, setIsNewRecord] = useState(false)
+
+  useEffect(() => {
+    // Load player's high score and check if this is a new record
+    loadHighScore()
+  }, [])
+
+  useEffect(() => {
+    // Auto-save score when component mounts
+    handleSaveScore()
+  }, [])
+
+  const loadHighScore = async () => {
+    try {
+      const playerScore = await getHighScore(walletAddress)
+      if (playerScore) {
+        setHighScore(playerScore.score)
+        if (gameState.score > playerScore.score) {
+          setIsNewRecord(true)
+        }
+      } else {
+        setIsNewRecord(true) // First score is always a record
+      }
+    } catch (error) {
+      console.error('Error loading high score:', error)
+    }
+  }
+
+  const handleSaveScore = async () => {
+    setIsSaving(true)
+    setSaveError(null)
+
+    try {
+      const scoreData: PlayerScore = {
+        walletAddress: walletAddress.toLowerCase(),
+        score: gameState.score,
+        coins: gameState.coins,
+        distance: Math.floor(gameState.distance),
+        timestamp: Date.now(),
+      }
+
+      await saveScore(scoreData)
+      setSaveSuccess(true)
+      
+      // Update high score if this is better
+      if (!highScore || gameState.score > highScore) {
+        setHighScore(gameState.score)
+        setIsNewRecord(true)
+      }
+    } catch (error) {
+      console.error('Error saving score:', error)
+      setSaveError('Failed to save score. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="game-over-screen">
+      <div className="game-over-content">
+        <h2>Game Over!</h2>
+        
+        {isNewRecord && (
+          <div className="new-record-badge">
+            🎉 New Personal Record! 🎉
+          </div>
+        )}
+
+        <div className="final-stats">
+          <div className="stat-card">
+            <div className="stat-label">Final Score</div>
+            <div className="stat-value">{gameState.score}</div>
+          </div>
+          
+          <div className="stat-card">
+            <div className="stat-label">Coins Collected</div>
+            <div className="stat-value">{gameState.coins}</div>
+          </div>
+          
+          <div className="stat-card">
+            <div className="stat-label">Distance</div>
+            <div className="stat-value">{Math.floor(gameState.distance)}m</div>
+          </div>
+
+          {highScore !== null && (
+            <div className="stat-card">
+              <div className="stat-label">Your Best Score</div>
+              <div className="stat-value">{highScore}</div>
+            </div>
+          )}
+        </div>
+
+        {isSaving && (
+          <div className="save-status">
+            <p>Saving your score...</p>
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="save-status success">
+            <p>✓ Score saved successfully!</p>
+          </div>
+        )}
+
+        {saveError && (
+          <div className="save-status error">
+            <p>{saveError}</p>
+            <button onClick={handleSaveScore} className="btn-secondary btn-small">
+              Retry
+            </button>
+          </div>
+        )}
+
+        <div className="game-over-actions">
+          <button onClick={onNewGame} className="btn-primary btn-large">
+            Play Again
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
