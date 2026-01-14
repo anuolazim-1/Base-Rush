@@ -13,6 +13,12 @@ import { injected, metaMask, walletConnect } from 'wagmi/connectors'
 // Switch to base (mainnet) for production
 const targetChain = process.env.NEXT_PUBLIC_CHAIN_ID === '8453' ? base : baseSepolia
 
+// Create transports object with both chains to satisfy TypeScript
+const transports: Record<number, ReturnType<typeof http>> = {
+  [base.id]: http(),
+  [baseSepolia.id]: http(),
+}
+
 export const wagmiConfig = createConfig({
   chains: [targetChain],
   connectors: [
@@ -20,9 +26,7 @@ export const wagmiConfig = createConfig({
     metaMask(),
     walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '' }),
   ],
-  transports: {
-    [targetChain.id]: http(),
-  },
+  transports,
 })
 
 // Export chain info for use in components
