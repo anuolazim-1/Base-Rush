@@ -1,6 +1,34 @@
 # Base Rush 🏃‍♂️
 
-An endless runner mini-game built for the Base ecosystem. Connect your wallet, play gaslessly, and compete on the global leaderboard!
+## About Base Rush
+
+Base Rush is an endless runner mini-game built specifically for the Base ecosystem. Players control a character that runs continuously, avoiding obstacles and collecting Base Coins to increase their score. The game features wallet-based authentication using Sign-In With Ethereum (SIWE), allowing players to connect their Base-compatible wallet without paying gas fees. Scores are tracked on a competitive global leaderboard, creating a simple yet engaging Web3 gaming experience that demonstrates the potential of gasless interactions on Base.
+
+The project serves as both a learning exercise and a portfolio demonstration of Web3 game development. It showcases integration with Base network, gasless authentication patterns, and off-chain data storage while maintaining a clean, beginner-friendly codebase. The game is designed to be browser-first with mobile support, making it accessible to casual Web3 users exploring the Base ecosystem.
+
+## Current Limitations
+
+This MVP version has several intentional limitations that reflect its current development stage:
+
+- **Off-Chain Score Storage**: All scores are stored in Firebase Firestore (off-chain). There is no on-chain verification or permanent blockchain record of scores at this time.
+
+- **Minimal Anti-Cheat**: Score validation is primarily client-side. The current implementation does not include robust server-side verification or cryptographic proof of gameplay authenticity.
+
+- **Planned On-Chain Features**: On-chain score verification, smart contract integration, and enhanced anti-cheat mechanisms are planned for future iterations but are not currently implemented.
+
+These limitations are acknowledged as part of the MVP scope, prioritizing simplicity and learning over production-grade security features.
+
+## Planned Improvements
+
+The following enhancements are planned for future iterations:
+
+- **On-Chain Score Verification**: Implement smart contract-based score verification to create tamper-proof, permanent records on Base blockchain
+- **ENS Support**: Display Ethereum Name Service (ENS) names on leaderboards instead of truncated wallet addresses
+- **Enhanced Gameplay**: Add power-ups, multiple obstacle types, and dynamic difficulty scaling
+- **Audio & Visual Polish**: Implement sound effects, background music, and improved sprite animations
+- **Server-Side Validation**: Add backend verification for score submissions to prevent cheating
+- **Player Profiles**: Create persistent player profiles with statistics and achievement tracking
+- **Daily/Weekly Challenges**: Implement time-limited challenges with special rewards
 
 ## 🎮 Game Overview
 
@@ -180,19 +208,56 @@ When adding features, consider:
 
 ## 🚢 Deployment
 
-### Vercel (Recommended)
+### Deployment (Vercel)
 
-1. Push your code to GitHub
-2. Import project in Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+Base Rush is fully compatible with Vercel's free tier and can be deployed with minimal configuration.
 
-### Firebase Hosting
+#### Quick Deploy Steps
+
+1. Push your code to a GitHub repository
+2. Import the project in [Vercel Dashboard](https://vercel.com/dashboard)
+3. Configure environment variables (see below)
+4. Deploy automatically on every push to main branch
+
+#### Required Environment Variables
+
+Add the following environment variables in your Vercel project settings:
+
+**Firebase Configuration** (Required):
+- `NEXT_PUBLIC_FIREBASE_API_KEY` - Your Firebase API key
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - Your Firebase auth domain
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - Your Firebase project ID
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` - Your Firebase storage bucket
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` - Your Firebase messaging sender ID
+- `NEXT_PUBLIC_FIREBASE_APP_ID` - Your Firebase app ID
+
+**Web3 Configuration** (Required):
+- `NEXT_PUBLIC_CHAIN_ID` - Set to `8453` for Base mainnet or `84531` for Base Sepolia testnet
+
+**Optional**:
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` - Only needed if using WalletConnect connector
+
+#### Firebase Free Tier Considerations
+
+The Firebase free tier (Spark plan) includes:
+- 1 GB storage
+- 10 GB/month network egress
+- 50K reads/day, 20K writes/day, 20K deletes/day
+
+For a portfolio project with moderate traffic, the free tier should be sufficient. Monitor usage in the Firebase Console and upgrade to Blaze (pay-as-you-go) if needed. The free tier does not require a credit card.
+
+#### Build Configuration
+
+Vercel will automatically detect Next.js and use the default build settings. No additional configuration is required. The build command `next build` runs automatically.
+
+### Alternative: Firebase Hosting
 
 ```bash
 npm run build
 firebase deploy
 ```
+
+Note: Firebase Hosting requires additional Firebase CLI setup and configuration.
 
 ## 🔒 Security Considerations
 
@@ -214,15 +279,11 @@ This is a portfolio project, but suggestions and improvements are welcome! Pleas
 - Follow existing code style
 - Test on both desktop and mobile
 
-## 🐛 Known Issues / Future Improvements
+## 🐛 Known Issues
 
-- [ ] Add server-side SIWE signature verification
-- [ ] Implement Firebase security rules
-- [ ] Add sound effects and music
-- [ ] Improve game graphics (sprites, animations)
-- [ ] Add player profiles/ENS name support
-- [ ] Implement daily/weekly challenges
-- [ ] Add more obstacle types and power-ups
+- Client-side SIWE signature verification only (server-side verification recommended for production)
+- Firebase security rules should be configured for production use
+- No rate limiting on score submissions (should be implemented for production)
 
 ## 📚 Resources
 
