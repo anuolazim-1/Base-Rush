@@ -31,6 +31,12 @@ export function GameScreen() {
     setGameState(null)
   }, [])
 
+  const handleDisconnected = useCallback(() => {
+    setIsAuthenticated(false)
+    setWalletAddress(null)
+    setGameState(null)
+  }, [])
+
   useEffect(() => {
     if (!walletAddress) return
     const key = `base-rush-player-name:${walletAddress.toLowerCase()}`
@@ -77,12 +83,10 @@ export function GameScreen() {
           >
             {showLeaderboard ? 'Hide' : 'Show'} Leaderboard
           </button>
-          {!isAuthenticated && <WalletConnect onAuthenticated={handleAuthenticated} />}
-          {isAuthenticated && walletAddress && (
-            <div className="wallet-badge">
-              {`${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
-            </div>
-          )}
+          <WalletConnect
+            onAuthenticated={handleAuthenticated}
+            onDisconnected={handleDisconnected}
+          />
         </div>
       </header>
 
