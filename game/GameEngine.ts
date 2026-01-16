@@ -83,6 +83,7 @@ export class GameEngine {
   private coinSpawnTimer: number = 0
   private speedLineTimer: number = 0
   private elapsedTimeMs: number = 0
+  private obstacleDistanceSinceLast: number = 0
 
   // Visual feedback
   private screenShakeTime: number = 0
@@ -174,6 +175,7 @@ export class GameEngine {
     this.coinSpawnTimer = 0
     this.speedLineTimer = 0
     this.elapsedTimeMs = 0
+    this.obstacleDistanceSinceLast = 0
     this.coinEffects = []
     this.speedLines = []
     this.screenShakeTime = 0
@@ -288,22 +290,37 @@ export class GameEngine {
 
   private updateSpawning(deltaTime: number) {
     const gracePeriodMs = 3500
-    const easyRampDurationMs = 12000
-    const rampProgress = Math.min(1, Math.max(0, (this.elapsedTimeMs - gracePeriodMs) / easyRampDurationMs))
-    const earlySpawnMultiplier = 1.6 - 0.6 * rampProgress
+    const earlyRampMs = 15000
+    const midRampMs = 45000
+    const gapEarly = 500
+    const gapMid = 360
+    const gapLate = 260
+    const gapFloor = 220
+
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+    const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+
+    const timeSinceGrace = Math.max(0, this.elapsedTimeMs - gracePeriodMs)
+    let targetGap = gapEarly
+    if (timeSinceGrace <= earlyRampMs) {
+      targetGap = lerp(gapEarly, gapMid, clamp01(timeSinceGrace / earlyRampMs))
+    } else if (timeSinceGrace <= midRampMs) {
+      const midProgress = clamp01((timeSinceGrace - earlyRampMs) / (midRampMs - earlyRampMs))
+      targetGap = lerp(gapMid, gapLate, midProgress)
+    } else {
+      const lateProgress = clamp01((timeSinceGrace - midRampMs) / 30000)
+      targetGap = lerp(gapLate, gapFloor, lateProgress)
+    }
 
     // Grace period before first obstacle
     if (this.elapsedTimeMs < gracePeriodMs) {
       return
     }
 
-    // Spawn obstacles
-    this.obstacleSpawnTimer++
-    if (this.obstacleSpawnTimer >= (this.config.obstacleSpawnRate * earlySpawnMultiplier) / this.gameSpeed) {
+    this.obstacleDistanceSinceLast += this.gameSpeed * (deltaTime / 16)
+    if (this.obstacleDistanceSinceLast >= Math.max(targetGap, gapFloor)) {
       this.spawnObstacle()
-      this.obstacleSpawnTimer = 0
-      // Decrease spawn rate as game gets faster
-      this.config.obstacleSpawnRate = Math.max(60, this.config.obstacleSpawnRate - 0.5)
+      this.obstacleDistanceSinceLast = 0
     }
 
     // Spawn coins
