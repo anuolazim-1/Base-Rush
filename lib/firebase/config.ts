@@ -27,13 +27,38 @@ const firebaseConfig = {
 let app: FirebaseApp | undefined
 let db: Firestore | undefined
 
-if (typeof window !== 'undefined') {
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig)
-  } else {
-    app = getApps()[0]
+function getMissingConfigKeys(config: Record<string, string>) {
+  return Object.entries(config)
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
+}
+
+/**
+ * Lazily initialize and return Firestore instance.
+ * Ensures single initialization and validates environment variables.
+ */
+export function getDb(): Firestore {
+  if (typeof window === 'undefined') {
+    throw new Error('Firebase client is not available on the server')
   }
-  db = getFirestore(app)
+
+  if (!app) {
+    if (getApps().length === 0) {
+      const missingKeys = getMissingConfigKeys(firebaseConfig)
+      if (missingKeys.length > 0) {
+        throw new Error(`Missing Firebase env vars: ${missingKeys.join(', ')}`)
+      }
+      app = initializeApp(firebaseConfig)
+    } else {
+      app = getApps()[0]
+    }
+  }
+
+  if (!db) {
+    db = getFirestore(app)
+  }
+
+  return db
 }
 
 export { app, db }

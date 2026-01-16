@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { saveScore, getHighScore } from '@/lib/firebase/scores'
 import type { Address } from 'viem'
 import type { GameState, PlayerScore } from '@/types'
@@ -20,18 +20,9 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
   const [saveError, setSaveError] = useState<string | null>(null)
   const [highScore, setHighScore] = useState<number | null>(null)
   const [isNewRecord, setIsNewRecord] = useState(false)
+  const hasSavedRef = useRef(false)
 
-  useEffect(() => {
-    // Load player's high score and check if this is a new record
-    loadHighScore()
-  }, [])
-
-  useEffect(() => {
-    // Auto-save score when component mounts
-    handleSaveScore()
-  }, [])
-
-  const loadHighScore = async () => {
+  const loadHighScore = useCallback(async () => {
     try {
       const playerScore = await getHighScore(walletAddress)
       if (playerScore) {
@@ -45,21 +36,30 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
     } catch (error) {
       console.error('Error loading high score:', error)
     }
-  }
+  }, [walletAddress, gameState.score])
 
-  const handleSaveScore = async () => {
+  const handleSaveScore = useCallback(async () => {
+    if (!walletAddress) {
+      return
+    }
+
+    const scoreData: PlayerScore = {
+      walletAddress: walletAddress.toLowerCase(),
+      score: gameState.score,
+      coins: gameState.coins,
+      distance: Math.floor(gameState.distance),
+      timestamp: Date.now(),
+    }
+
+    // Basic payload validation to avoid false "save failed" errors
+    if (!scoreData.walletAddress || scoreData.timestamp <= 0) {
+      return
+    }
+
     setIsSaving(true)
     setSaveError(null)
 
     try {
-      const scoreData: PlayerScore = {
-        walletAddress: walletAddress.toLowerCase(),
-        score: gameState.score,
-        coins: gameState.coins,
-        distance: Math.floor(gameState.distance),
-        timestamp: Date.now(),
-      }
-
       await saveScore(scoreData)
       setSaveSuccess(true)
       
@@ -70,11 +70,33 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
       }
     } catch (error) {
       console.error('Error saving score:', error)
-      setSaveError('Failed to save score. Please try again.')
+      const errorMessage = (error as { message?: string; code?: string })?.message || ''
+      const errorCode = (error as { code?: string })?.code || ''
+
+      if (errorCode === 'permission-denied' || errorMessage.includes('permission')) {
+        setSaveError('Failed to save score. Firestore rules may be blocking writes.')
+      } else if (errorMessage.includes('Missing Firebase env vars')) {
+        setSaveError('Failed to save score. Firebase configuration is missing.')
+      } else {
+        setSaveError('Failed to save score. Please try again.')
+      }
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [walletAddress, gameState.score, gameState.coins, gameState.distance, highScore])
+
+  useEffect(() => {
+    // Load player's high score and check if this is a new record
+    if (!walletAddress) return
+    loadHighScore()
+  }, [walletAddress, gameState.score, loadHighScore])
+
+  useEffect(() => {
+    // Auto-save score when component mounts
+    if (!walletAddress || hasSavedRef.current) return
+    hasSavedRef.current = true
+    handleSaveScore()
+  }, [walletAddress, gameState.score, handleSaveScore])
 
   return (
     <div className="game-over-screen">

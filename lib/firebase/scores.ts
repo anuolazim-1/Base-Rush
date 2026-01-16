@@ -19,7 +19,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData
 } from 'firebase/firestore'
-import { db } from './config'
+import { getDb } from './config'
 import type { PlayerScore, LeaderboardEntry } from '@/types'
 
 const SCORES_COLLECTION = 'scores'
@@ -29,9 +29,7 @@ const LEADERBOARD_LIMIT = 100
  * Save a player's score to Firestore
  */
 export async function saveScore(score: PlayerScore): Promise<void> {
-  if (!db) {
-    throw new Error('Firebase not initialized')
-  }
+  const db = getDb()
 
   try {
     await addDoc(collection(db, SCORES_COLLECTION), {
@@ -48,9 +46,7 @@ export async function saveScore(score: PlayerScore): Promise<void> {
  * Get the highest score for a specific wallet address
  */
 export async function getHighScore(walletAddress: string): Promise<PlayerScore | null> {
-  if (!db) {
-    throw new Error('Firebase not initialized')
-  }
+  const db = getDb()
 
   try {
     const q = query(
@@ -78,9 +74,7 @@ export async function getHighScore(walletAddress: string): Promise<PlayerScore |
  * Get the global leaderboard (top N scores)
  */
 export async function getLeaderboard(limitCount: number = LEADERBOARD_LIMIT): Promise<LeaderboardEntry[]> {
-  if (!db) {
-    throw new Error('Firebase not initialized')
-  }
+  const db = getDb()
 
   try {
     const q = query(
