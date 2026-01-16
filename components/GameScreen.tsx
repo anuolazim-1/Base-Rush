@@ -53,8 +53,8 @@ export function GameScreen() {
         {!isAuthenticated ? (
           <div className="auth-prompt">
             <h2>Connect Your Wallet to Play</h2>
-            <p>Connect your Base wallet to start playing and save your scores!</p>
-            <WalletConnect onAuthenticated={handleAuthenticated} />
+            <p>Connect your Base wallet to start playing and save your scores.</p>
+            <p>Use the Connect button in the header to continue.</p>
           </div>
         ) : gameState?.isGameOver ? (
           <GameOverScreen 
