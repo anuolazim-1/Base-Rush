@@ -8,12 +8,19 @@ import type { GameState } from '@/types'
 interface GameCanvasProps {
   walletAddress: Address
   onGameStateChange: (state: GameState) => void
+  autoStart?: boolean
+  onAutoStartHandled?: () => void
 }
 
 /**
  * GameCanvas component manages the game engine and canvas rendering
  */
-export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps) {
+export function GameCanvas({
+  walletAddress,
+  onGameStateChange,
+  autoStart = false,
+  onAutoStartHandled,
+}: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<GameEngine | null>(null)
   const [isPaused, setIsPaused] = useState(false)
@@ -23,6 +30,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
   const [currentSpeed, setCurrentSpeed] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const muteHydratedRef = useRef(false)
 
   // Memoize callback to avoid unnecessary re-renders
   const stableOnGameStateChange = useCallback(onGameStateChange, [onGameStateChange])
@@ -140,6 +148,30 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
       }
     }
   }, [stableOnGameStateChange, initAudio, playTone])
+
+  useEffect(() => {
+    if (!autoStart) return
+    const engine = engineRef.current
+    if (engine && !engine.getState().isPlaying) {
+      engine.start()
+      onAutoStartHandled?.()
+    }
+  }, [autoStart, onAutoStartHandled])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = localStorage.getItem('base-rush-muted')
+    if (stored) {
+      setIsMuted(stored === '1')
+    }
+    muteHydratedRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!muteHydratedRef.current) return
+    if (typeof window === 'undefined') return
+    localStorage.setItem('base-rush-muted', isMuted ? '1' : '0')
+  }, [isMuted])
 
   const handleStartClick = () => {
     if (engineRef.current && !engineRef.current.getState().isPlaying) {

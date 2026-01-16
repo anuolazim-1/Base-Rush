@@ -17,6 +17,9 @@ export function GameScreen() {
   const [playerName, setPlayerName] = useState('')
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
+  const [showHowTo, setShowHowTo] = useState(false)
+  const [dontShowHowTo, setDontShowHowTo] = useState(false)
+  const [autoStartGame, setAutoStartGame] = useState(false)
 
   const handleAuthenticated = useCallback((address: Address) => {
     setWalletAddress(address)
@@ -29,13 +32,34 @@ export function GameScreen() {
 
   const handleNewGame = useCallback(() => {
     setGameState(null)
+    setAutoStartGame(true)
   }, [])
 
   const handleDisconnected = useCallback(() => {
     setIsAuthenticated(false)
     setWalletAddress(null)
     setGameState(null)
+    setAutoStartGame(false)
   }, [])
+
+  const handleAutoStartHandled = useCallback(() => {
+    setAutoStartGame(false)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hideHowTo = localStorage.getItem('base-rush-hide-howto')
+    if (!hideHowTo) {
+      setShowHowTo(true)
+    }
+  }, [])
+
+  const handleCloseHowTo = useCallback(() => {
+    if (dontShowHowTo && typeof window !== 'undefined') {
+      localStorage.setItem('base-rush-hide-howto', '1')
+    }
+    setShowHowTo(false)
+  }, [dontShowHowTo])
 
   useEffect(() => {
     if (!walletAddress) return
@@ -93,6 +117,32 @@ export function GameScreen() {
       <main className="game-main">
         {showLeaderboard && <Leaderboard />}
         
+        {showHowTo && (
+          <div className="how-to-overlay">
+            <div className="how-to-card">
+              <h3>How to Play</h3>
+              <ul className="how-to-list">
+                <li>Jump to avoid obstacles</li>
+                <li>Collect Base Coins to boost score</li>
+                <li>Survive as long as you can</li>
+              </ul>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={dontShowHowTo}
+                  onChange={(e) => setDontShowHowTo(e.target.checked)}
+                />
+                Don’t show again
+              </label>
+              <div className="how-to-actions">
+                <button className="btn-primary" onClick={handleCloseHowTo}>
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isAuthenticated && showNamePrompt && (
           <div className="player-name-modal">
             <div className="player-name-card">
@@ -134,6 +184,8 @@ export function GameScreen() {
           <GameCanvas 
             walletAddress={walletAddress!}
             onGameStateChange={handleGameStateChange}
+            autoStart={autoStartGame}
+            onAutoStartHandled={handleAutoStartHandled}
           />
         )}
       </main>
