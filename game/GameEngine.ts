@@ -82,6 +82,7 @@ export class GameEngine {
   private obstacleSpawnTimer: number = 0
   private coinSpawnTimer: number = 0
   private speedLineTimer: number = 0
+  private elapsedTimeMs: number = 0
 
   // Visual feedback
   private screenShakeTime: number = 0
@@ -172,6 +173,7 @@ export class GameEngine {
     this.obstacleSpawnTimer = 0
     this.coinSpawnTimer = 0
     this.speedLineTimer = 0
+    this.elapsedTimeMs = 0
     this.coinEffects = []
     this.speedLines = []
     this.screenShakeTime = 0
@@ -240,11 +242,13 @@ export class GameEngine {
   private update(deltaTime: number) {
     if (this.state.isPaused || this.state.isGameOver) return
 
+    this.elapsedTimeMs += deltaTime
+
     // Update player physics
     this.updatePlayer(deltaTime)
 
     // Spawn obstacles and coins
-    this.updateSpawning()
+    this.updateSpawning(deltaTime)
 
     // Update obstacles
     this.updateObstacles()
@@ -282,10 +286,20 @@ export class GameEngine {
     }
   }
 
-  private updateSpawning() {
+  private updateSpawning(deltaTime: number) {
+    const gracePeriodMs = 3500
+    const easyRampDurationMs = 12000
+    const rampProgress = Math.min(1, Math.max(0, (this.elapsedTimeMs - gracePeriodMs) / easyRampDurationMs))
+    const earlySpawnMultiplier = 1.6 - 0.6 * rampProgress
+
+    // Grace period before first obstacle
+    if (this.elapsedTimeMs < gracePeriodMs) {
+      return
+    }
+
     // Spawn obstacles
     this.obstacleSpawnTimer++
-    if (this.obstacleSpawnTimer >= this.config.obstacleSpawnRate / this.gameSpeed) {
+    if (this.obstacleSpawnTimer >= (this.config.obstacleSpawnRate * earlySpawnMultiplier) / this.gameSpeed) {
       this.spawnObstacle()
       this.obstacleSpawnTimer = 0
       // Decrease spawn rate as game gets faster
@@ -350,7 +364,13 @@ export class GameEngine {
   private checkCollisions() {
     // Check obstacle collisions
     for (const obstacle of this.obstacles) {
-      if (this.isColliding(this.player, obstacle)) {
+      const hitbox = {
+        x: obstacle.x + obstacle.width * 0.1,
+        y: obstacle.y + obstacle.height * 0.05,
+        width: obstacle.width * 0.8,
+        height: obstacle.height * 0.9,
+      }
+      if (this.isColliding(this.player, hitbox)) {
         this.gameOver()
         return
       }
@@ -443,17 +463,44 @@ export class GameEngine {
     ctx.lineWidth = 2
     ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
 
-    // Draw obstacles
-    ctx.fillStyle = '#FF4D4D'
+    // Draw obstacles (tree shapes)
     this.obstacles.forEach((obstacle) => {
-      const obstacleGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height)
-      obstacleGradient.addColorStop(0, '#FF6B6B')
-      obstacleGradient.addColorStop(1, '#C62828')
-      ctx.fillStyle = obstacleGradient
-      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
-      ctx.strokeStyle = '#7F1D1D'
+      const trunkWidth = obstacle.width * 0.35
+      const trunkHeight = obstacle.height * 0.55
+      const trunkX = obstacle.x + (obstacle.width - trunkWidth) / 2
+      const trunkY = obstacle.y + obstacle.height - trunkHeight
+      const canopyRadius = obstacle.width * 0.55
+      const canopyX = obstacle.x + obstacle.width / 2
+      const canopyY = obstacle.y + canopyRadius
+
+      // Trunk
+      const trunkGradient = ctx.createLinearGradient(trunkX, trunkY, trunkX, trunkY + trunkHeight)
+      trunkGradient.addColorStop(0, '#8D5A2B')
+      trunkGradient.addColorStop(1, '#5A3A1C')
+      ctx.fillStyle = trunkGradient
+      ctx.fillRect(trunkX, trunkY, trunkWidth, trunkHeight)
+      ctx.strokeStyle = '#3E2611'
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(trunkX, trunkY, trunkWidth, trunkHeight)
+
+      // Canopy
+      const canopyGradient = ctx.createRadialGradient(
+        canopyX,
+        canopyY,
+        4,
+        canopyX,
+        canopyY,
+        canopyRadius
+      )
+      canopyGradient.addColorStop(0, '#66BB6A')
+      canopyGradient.addColorStop(1, '#2E7D32')
+      ctx.fillStyle = canopyGradient
+      ctx.beginPath()
+      ctx.arc(canopyX, canopyY, canopyRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#1B5E20'
       ctx.lineWidth = 2
-      ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+      ctx.stroke()
     })
 
     // Draw coins

@@ -43,12 +43,17 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
       return
     }
 
+    const storedName = typeof window !== 'undefined'
+      ? localStorage.getItem(`base-rush-player-name:${walletAddress.toLowerCase()}`)
+      : null
+
     const scoreData: PlayerScore = {
       walletAddress: walletAddress.toLowerCase(),
       score: gameState.score,
       coins: gameState.coins,
       distance: Math.floor(gameState.distance),
       timestamp: Date.now(),
+      playerName: storedName || undefined,
     }
 
     // Basic payload validation to avoid false "save failed" errors

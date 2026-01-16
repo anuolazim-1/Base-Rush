@@ -20,6 +20,7 @@ import {
   DocumentData
 } from 'firebase/firestore'
 import { getDb } from './config'
+import { getPlayerName } from './players'
 import type { PlayerScore, LeaderboardEntry } from '@/types'
 
 const SCORES_COLLECTION = 'scores'
@@ -93,6 +94,23 @@ export async function getLeaderboard(limitCount: number = LEADERBOARD_LIMIT): Pr
         rank: index + 1,
       })
     })
+
+    const missingNames = leaderboard.filter((entry) => !entry.playerName)
+    if (missingNames.length > 0) {
+      const nameLookups = await Promise.all(
+        missingNames.map(async (entry) => ({
+          walletAddress: entry.walletAddress,
+          playerName: await getPlayerName(entry.walletAddress),
+        }))
+      )
+      const nameMap = new Map(nameLookups.map((item) => [item.walletAddress, item.playerName]))
+      leaderboard.forEach((entry) => {
+        const name = nameMap.get(entry.walletAddress)
+        if (name) {
+          entry.playerName = name
+        }
+      })
+    }
 
     return leaderboard
   } catch (error) {
