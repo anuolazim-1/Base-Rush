@@ -40,16 +40,38 @@ export interface Coin {
   collected: boolean
 }
 
+export interface GameEngineEvents {
+  onCoinCollected?: (x: number, y: number) => void
+  onGameOver?: () => void
+}
+
+interface CoinEffect {
+  x: number
+  y: number
+  age: number
+  duration: number
+}
+
+interface SpeedLine {
+  x: number
+  y: number
+  length: number
+  opacity: number
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
   private config: GameConfig
   private state: GameState
+  private events?: GameEngineEvents
 
   // Game entities
   private player: Player
   private obstacles: Obstacle[] = []
   private coins: Coin[] = []
+  private coinEffects: CoinEffect[] = []
+  private speedLines: SpeedLine[] = []
 
   // Game loop
   private animationFrameId: number | null = null
@@ -59,14 +81,21 @@ export class GameEngine {
   // Spawning
   private obstacleSpawnTimer: number = 0
   private coinSpawnTimer: number = 0
+  private speedLineTimer: number = 0
 
-  constructor(canvas: HTMLCanvasElement, config?: Partial<GameConfig>) {
+  // Visual feedback
+  private screenShakeTime: number = 0
+  private screenFlashTime: number = 0
+  private postGameEffectTime: number = 0
+
+  constructor(canvas: HTMLCanvasElement, config?: Partial<GameConfig>, events?: GameEngineEvents) {
     this.canvas = canvas
     const context = canvas.getContext('2d')
     if (!context) {
       throw new Error('Could not get 2D rendering context')
     }
     this.ctx = context
+    this.events = events
 
     // Default game configuration
     this.config = {
@@ -89,6 +118,7 @@ export class GameEngine {
       score: 0,
       coins: 0,
       distance: 0,
+      speed: this.config.initialSpeed,
     }
 
     // Initialize player
@@ -130,6 +160,7 @@ export class GameEngine {
     this.state.score = 0
     this.state.coins = 0
     this.state.distance = 0
+    this.state.speed = this.config.initialSpeed
 
     // Reset entities
     this.obstacles = []
@@ -140,6 +171,12 @@ export class GameEngine {
     this.gameSpeed = this.config.initialSpeed
     this.obstacleSpawnTimer = 0
     this.coinSpawnTimer = 0
+    this.speedLineTimer = 0
+    this.coinEffects = []
+    this.speedLines = []
+    this.screenShakeTime = 0
+    this.screenFlashTime = 0
+    this.postGameEffectTime = 0
 
     this.lastFrameTime = performance.now()
     this.gameLoop(this.lastFrameTime)
@@ -173,13 +210,26 @@ export class GameEngine {
    * Main game loop
    */
   private gameLoop(currentTime: number) {
-    if (this.state.isPaused || this.state.isGameOver) return
+    if (this.state.isPaused) return
 
     const deltaTime = currentTime - this.lastFrameTime
     this.lastFrameTime = currentTime
 
-    this.update(deltaTime)
+    if (!this.state.isGameOver) {
+      this.update(deltaTime)
+    } else {
+      this.updateScreenEffects(deltaTime)
+      this.postGameEffectTime = Math.max(0, this.postGameEffectTime - deltaTime)
+    }
     this.render()
+
+    if (this.state.isGameOver && this.postGameEffectTime <= 0) {
+      if (this.animationFrameId !== null) {
+        cancelAnimationFrame(this.animationFrameId)
+        this.animationFrameId = null
+      }
+      return
+    }
 
     this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time))
   }
@@ -209,6 +259,12 @@ export class GameEngine {
     this.state.distance += this.gameSpeed * (deltaTime / 16) // Normalize to 60fps
     this.state.score = Math.floor(this.state.distance / 10) + this.state.coins * 10
     this.gameSpeed += this.config.speedIncrement
+    this.state.speed = this.gameSpeed
+
+    // Update effects
+    this.updateCoinEffects(deltaTime)
+    this.updateSpeedLines(deltaTime)
+    this.updateScreenEffects(deltaTime)
   }
 
   private updatePlayer(deltaTime: number) {
@@ -305,6 +361,8 @@ export class GameEngine {
       if (!coin.collected && this.isColliding(this.player, coin)) {
         coin.collected = true
         this.state.coins++
+        this.spawnCoinEffect(coin)
+        this.events?.onCoinCollected?.(coin.x + coin.width / 2, coin.y + coin.height / 2)
       }
     }
   }
@@ -324,50 +382,135 @@ export class GameEngine {
   private gameOver() {
     this.state.isGameOver = true
     this.state.isPlaying = false
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId)
-      this.animationFrameId = null
-    }
+    this.screenShakeTime = 250
+    this.screenFlashTime = 220
+    this.postGameEffectTime = 260
+    this.events?.onGameOver?.()
   }
 
   /**
    * Render game frame
    */
   private render() {
-    // Clear canvas
-    this.ctx.fillStyle = '#001F5C'
-    this.ctx.fillRect(0, 0, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio)
+    const ctx = this.ctx
+    const width = this.canvas.width / window.devicePixelRatio
+    const height = this.canvas.height / window.devicePixelRatio
+    const speedFactor = Math.min(1, (this.gameSpeed - this.config.initialSpeed) / 8)
+
+    // Screen shake
+    ctx.save()
+    if (this.screenShakeTime > 0) {
+      const magnitude = 6 * speedFactor + 2
+      const offsetX = (Math.random() - 0.5) * magnitude
+      const offsetY = (Math.random() - 0.5) * magnitude
+      ctx.translate(offsetX, offsetY)
+    }
+
+    // Background gradient with speed shift
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height)
+    bgGradient.addColorStop(0, `rgba(0, 82, 255, ${0.55 + speedFactor * 0.2})`)
+    bgGradient.addColorStop(1, `rgba(0, 31, 92, ${0.95})`)
+    ctx.fillStyle = bgGradient
+    ctx.fillRect(0, 0, width, height)
+
+    // Speed lines
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 + speedFactor * 0.2})`
+    ctx.lineWidth = 1
+    this.speedLines.forEach((line) => {
+      ctx.globalAlpha = line.opacity
+      ctx.beginPath()
+      ctx.moveTo(line.x, line.y)
+      ctx.lineTo(line.x + line.length, line.y)
+      ctx.stroke()
+    })
+    ctx.globalAlpha = 1
 
     // Draw ground
-    this.ctx.fillStyle = '#0052FF'
+    const groundGradient = ctx.createLinearGradient(0, this.player.groundY, 0, height)
+    groundGradient.addColorStop(0, '#0046D9')
+    groundGradient.addColorStop(1, '#002B7F')
+    ctx.fillStyle = groundGradient
     const groundY = this.player.groundY
-    this.ctx.fillRect(0, groundY, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio - groundY)
+    ctx.fillRect(0, groundY, width, height - groundY)
 
     // Draw player
-    this.ctx.fillStyle = '#FFFFFF'
-    this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height)
+    const playerGradient = ctx.createLinearGradient(this.player.x, this.player.y, this.player.x, this.player.y + this.player.height)
+    playerGradient.addColorStop(0, '#FFFFFF')
+    playerGradient.addColorStop(1, '#C9D9FF')
+    ctx.fillStyle = playerGradient
+    ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height)
+    ctx.strokeStyle = '#7FA6FF'
+    ctx.lineWidth = 2
+    ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
 
     // Draw obstacles
-    this.ctx.fillStyle = '#FF0000'
+    ctx.fillStyle = '#FF4D4D'
     this.obstacles.forEach((obstacle) => {
-      this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+      const obstacleGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x, obstacle.y + obstacle.height)
+      obstacleGradient.addColorStop(0, '#FF6B6B')
+      obstacleGradient.addColorStop(1, '#C62828')
+      ctx.fillStyle = obstacleGradient
+      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+      ctx.strokeStyle = '#7F1D1D'
+      ctx.lineWidth = 2
+      ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
     })
 
     // Draw coins
-    this.ctx.fillStyle = '#FFD700'
+    ctx.fillStyle = '#FFD700'
     this.coins.forEach((coin) => {
       if (!coin.collected) {
-        this.ctx.beginPath()
-        this.ctx.arc(
+        const coinGradient = ctx.createRadialGradient(
+          coin.x + coin.width / 2,
+          coin.y + coin.height / 2,
+          2,
+          coin.x + coin.width / 2,
+          coin.y + coin.height / 2,
+          coin.width / 2
+        )
+        coinGradient.addColorStop(0, '#FFF6A1')
+        coinGradient.addColorStop(1, '#F5B700')
+        ctx.fillStyle = coinGradient
+        ctx.beginPath()
+        ctx.arc(
           coin.x + coin.width / 2,
           coin.y + coin.height / 2,
           coin.width / 2,
           0,
           Math.PI * 2
         )
-        this.ctx.fill()
+        ctx.fill()
+        ctx.strokeStyle = '#B8860B'
+        ctx.lineWidth = 2
+        ctx.stroke()
       }
     })
+
+    // Coin pickup effects
+    this.coinEffects.forEach((effect) => {
+      const progress = effect.age / effect.duration
+      const alpha = 1 - progress
+      const size = 12 + progress * 18
+      ctx.globalAlpha = alpha
+      ctx.strokeStyle = '#FFF1A8'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(effect.x, effect.y, size, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = '#FFF1A8'
+      ctx.font = 'bold 14px Arial'
+      ctx.fillText('+1', effect.x - 8, effect.y - 18 - progress * 12)
+      ctx.globalAlpha = 1
+    })
+
+    // Red flash on game over
+    if (this.screenFlashTime > 0) {
+      const flashAlpha = Math.min(0.5, this.screenFlashTime / 220)
+      ctx.fillStyle = `rgba(255, 60, 60, ${flashAlpha})`
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    ctx.restore()
   }
 
   /**
@@ -392,5 +535,47 @@ export class GameEngine {
    */
   handleResize() {
     this.setupCanvas()
+  }
+
+  private spawnCoinEffect(coin: Coin) {
+    this.coinEffects.push({
+      x: coin.x + coin.width / 2,
+      y: coin.y + coin.height / 2,
+      age: 0,
+      duration: 500,
+    })
+  }
+
+  private updateCoinEffects(deltaTime: number) {
+    this.coinEffects.forEach((effect) => {
+      effect.age += deltaTime
+      effect.y -= 0.03 * deltaTime
+    })
+    this.coinEffects = this.coinEffects.filter((effect) => effect.age < effect.duration)
+  }
+
+  private updateSpeedLines(deltaTime: number) {
+    this.speedLineTimer += deltaTime
+    if (this.speedLineTimer > 120 / Math.max(1, this.gameSpeed / 2)) {
+      this.speedLineTimer = 0
+      this.speedLines.push({
+        x: this.canvas.width / window.devicePixelRatio + 20,
+        y: 40 + Math.random() * (this.player.groundY - 120),
+        length: 20 + Math.random() * 40,
+        opacity: 0.2 + Math.random() * 0.2,
+      })
+    }
+
+    this.speedLines.forEach((line) => {
+      line.x -= this.gameSpeed * 1.6
+      line.opacity -= deltaTime * 0.0005
+    })
+
+    this.speedLines = this.speedLines.filter((line) => line.x + line.length > 0 && line.opacity > 0)
+  }
+
+  private updateScreenEffects(deltaTime: number) {
+    this.screenShakeTime = Math.max(0, this.screenShakeTime - deltaTime)
+    this.screenFlashTime = Math.max(0, this.screenFlashTime - deltaTime)
   }
 }

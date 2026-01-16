@@ -27,6 +27,7 @@ export interface GameState {
   score: number
   coins: number
   distance: number
+  speed: number
 }
 
 export interface GameConfig {

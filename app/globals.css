@@ -21,6 +21,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@keyframes popIn {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeSlideUp {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
 #game-canvas {
   display: block;
   max-width: 100%;
@@ -151,10 +161,13 @@ body {
   font-weight: 600;
   cursor: pointer;
   font-size: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-control:hover {
   background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .btn-jump {
@@ -215,11 +228,14 @@ body {
   display: flex;
   gap: 2rem;
   padding: 1rem;
-  background: rgba(0, 31, 92, 0.6);
+  background: linear-gradient(135deg, rgba(0, 31, 92, 0.8), rgba(0, 82, 255, 0.35));
   border-radius: 8px;
   width: 100%;
   max-width: 800px;
   justify-content: center;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  position: relative;
 }
 
 .hud-stat {
@@ -227,17 +243,48 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 90px;
+  animation: popIn 0.25s ease-out;
 }
 
 .hud-label {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .hud-value {
   font-size: 1.5rem;
   font-weight: bold;
   color: #00ff88;
+  text-shadow: 0 2px 8px rgba(0, 255, 136, 0.35);
+}
+
+.btn-mute {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  padding: 0.35rem 0.5rem;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.btn-mute:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-mute.muted {
+  opacity: 0.7;
 }
 
 .game-canvas {
@@ -258,6 +305,10 @@ body {
   text-align: center;
   border: 2px solid rgba(0, 255, 136, 0.5);
   z-index: 10;
+}
+
+.overlay-fade-in {
+  animation: fadeSlideUp 0.2s ease-out;
 }
 
 .game-start-overlay h2,
@@ -336,6 +387,12 @@ body {
   padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid rgba(0, 255, 136, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .stat-label {

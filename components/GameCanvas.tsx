@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { GameEngine } from '@/game/GameEngine'
+import { GameEngine, GameEngineEvents } from '@/game/GameEngine'
 import type { Address } from 'viem'
 import type { GameState } from '@/types'
 
@@ -20,21 +20,61 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
   const [currentScore, setCurrentScore] = useState(0)
   const [currentCoins, setCurrentCoins] = useState(0)
   const [currentDistance, setCurrentDistance] = useState(0)
+  const [currentSpeed, setCurrentSpeed] = useState(0)
+  const [isMuted, setIsMuted] = useState(false)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   // Memoize callback to avoid unnecessary re-renders
   const stableOnGameStateChange = useCallback(onGameStateChange, [onGameStateChange])
 
+  const initAudio = useCallback(async () => {
+    if (isMuted) return
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext()
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume()
+    }
+  }, [isMuted])
+
+  const playTone = useCallback(
+    (frequency: number, durationMs: number, type: OscillatorType = 'sine', volume: number = 0.05) => {
+      if (isMuted || !audioContextRef.current) return
+      const ctx = audioContextRef.current
+      const oscillator = ctx.createOscillator()
+      const gain = ctx.createGain()
+      oscillator.type = type
+      oscillator.frequency.value = frequency
+      gain.gain.value = volume
+      oscillator.connect(gain)
+      gain.connect(ctx.destination)
+      oscillator.start()
+      oscillator.stop(ctx.currentTime + durationMs / 1000)
+    },
+    [isMuted]
+  )
+
   useEffect(() => {
     if (!canvasRef.current) return
 
+    const events: GameEngineEvents = {
+      onCoinCollected: () => {
+        playTone(820, 90, 'triangle', 0.06)
+      },
+      onGameOver: () => {
+        playTone(160, 420, 'sawtooth', 0.08)
+      },
+    }
+
     // Initialize game engine
-    const engine = new GameEngine(canvasRef.current)
+    const engine = new GameEngine(canvasRef.current, undefined, events)
     engineRef.current = engine
 
     // Handle keyboard input
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault()
+        initAudio()
         if (engine.getState().isPaused) {
           engine.togglePause()
           setIsPaused(false)
@@ -42,6 +82,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
           engine.start()
         } else {
           engine.jump()
+          playTone(420, 120, 'square', 0.05)
         }
       } else if (e.key === 'p' || e.key === 'P') {
         engine.togglePause()
@@ -52,6 +93,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
     // Handle touch/mobile input
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault()
+      initAudio()
       if (engine.getState().isPaused) {
         engine.togglePause()
         setIsPaused(false)
@@ -59,6 +101,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
         engine.start()
       } else {
         engine.jump()
+        playTone(420, 120, 'square', 0.05)
       }
     }
 
@@ -73,6 +116,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
         setCurrentScore(state.score)
         setCurrentCoins(state.coins)
         setCurrentDistance(Math.floor(state.distance))
+        setCurrentSpeed(state.speed)
       }
     }, 100)
 
@@ -95,10 +139,11 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
         engine.destroy()
       }
     }
-  }, [stableOnGameStateChange])
+  }, [stableOnGameStateChange, initAudio, playTone])
 
   const handleStartClick = () => {
     if (engineRef.current && !engineRef.current.getState().isPlaying) {
+      initAudio()
       engineRef.current.start()
     }
   }
@@ -112,7 +157,9 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
 
   const handleJumpClick = () => {
     if (engineRef.current) {
+      initAudio()
       engineRef.current.jump()
+      playTone(420, 120, 'square', 0.05)
     }
   }
 
@@ -133,6 +180,17 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
           <span className="hud-label">Distance:</span>
           <span className="hud-value">{currentDistance}m</span>
         </div>
+        <div className="hud-stat">
+          <span className="hud-label">Speed:</span>
+          <span className="hud-value">{currentSpeed.toFixed(1)}x</span>
+        </div>
+        <button
+          className={`btn-mute ${isMuted ? 'muted' : ''}`}
+          onClick={() => setIsMuted((prev) => !prev)}
+          aria-label={isMuted ? 'Unmute sound' : 'Mute sound'}
+        >
+          {isMuted ? '🔇' : '🔊'}
+        </button>
       </div>
 
       <canvas
@@ -143,7 +201,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
       />
 
       {!state?.isPlaying && !state?.isGameOver && (
-        <div className="game-start-overlay">
+        <div className="game-start-overlay overlay-fade-in">
           <h2>Base Rush</h2>
           <p>Press SPACE or tap to jump</p>
           <p>Collect Base Coins and avoid obstacles!</p>
@@ -154,7 +212,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
       )}
 
       {state?.isPaused && (
-        <div className="game-pause-overlay">
+        <div className="game-pause-overlay overlay-fade-in">
           <h2>Paused</h2>
           <button onClick={handlePauseClick} className="btn-primary">
             Resume
@@ -163,7 +221,7 @@ export function GameCanvas({ walletAddress, onGameStateChange }: GameCanvasProps
       )}
 
       {state?.isPlaying && !state.isPaused && (
-        <div className="game-controls">
+        <div className="game-controls overlay-fade-in">
           <button onClick={handlePauseClick} className="btn-control">
             ⏸ Pause
           </button>
