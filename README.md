@@ -1,5 +1,7 @@
 # Base Rush 🏃‍♂️
 
+**Live Demo:** https://base-rush.vercel.app
+
 ## About Base Rush
 
 Base Rush is an endless runner mini-game built specifically for the Base ecosystem. Players control a character that runs continuously, avoiding obstacles and collecting Base Coins to increase their score. The game features wallet-based authentication using Sign-In With Ethereum (SIWE), allowing players to connect their Base-compatible wallet without paying gas fees. Scores are tracked on a competitive global leaderboard, creating a simple yet engaging Web3 gaming experience that demonstrates the potential of gasless interactions on Base.
