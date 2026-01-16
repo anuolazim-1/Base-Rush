@@ -25,6 +25,7 @@ import type { PlayerScore, LeaderboardEntry } from '@/types'
 
 const SCORES_COLLECTION = 'scores'
 const LEADERBOARD_LIMIT = 100
+const LEADERBOARD_FETCH_MULTIPLIER = 5
 
 /**
  * Save a player's score to Firestore
@@ -54,7 +55,7 @@ export async function getHighScore(walletAddress: string): Promise<PlayerScore |
       collection(db, SCORES_COLLECTION),
       where('walletAddress', '==', walletAddress),
       orderBy('score', 'desc'),
-      limit(1)
+      limit(25)
     )
 
     const querySnapshot = await getDocs(q)
@@ -63,8 +64,13 @@ export async function getHighScore(walletAddress: string): Promise<PlayerScore |
       return null
     }
 
-    const doc = querySnapshot.docs[0]
-    return docToPlayerScore(doc)
+    const scores = querySnapshot.docs.map((doc) => docToPlayerScore(doc))
+    scores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      if (b.distance !== a.distance) return b.distance - a.distance
+      return b.timestamp - a.timestamp
+    })
+    return scores[0] ?? null
   } catch (error) {
     console.error('Error fetching high score:', error)
     return null
@@ -78,22 +84,34 @@ export async function getLeaderboard(limitCount: number = LEADERBOARD_LIMIT): Pr
   const db = getDb()
 
   try {
+    const fetchLimit = Math.max(limitCount * LEADERBOARD_FETCH_MULTIPLIER, limitCount)
     const q = query(
       collection(db, SCORES_COLLECTION),
       orderBy('score', 'desc'),
-      limit(limitCount)
+      limit(fetchLimit)
     )
 
     const querySnapshot = await getDocs(q)
     
-    const leaderboard: LeaderboardEntry[] = []
-    querySnapshot.docs.forEach((doc, index) => {
-      const score = docToPlayerScore(doc)
-      leaderboard.push({
-        ...score,
-        rank: index + 1,
-      })
+    const runs = querySnapshot.docs.map((doc) => docToPlayerScore(doc))
+    runs.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      if (b.distance !== a.distance) return b.distance - a.distance
+      return b.timestamp - a.timestamp
     })
+
+    // Leaderboard model: best score per wallet
+    const seen = new Set<string>()
+    const leaderboard: LeaderboardEntry[] = []
+    for (const run of runs) {
+      if (seen.has(run.walletAddress)) continue
+      seen.add(run.walletAddress)
+      leaderboard.push({
+        ...run,
+        rank: leaderboard.length + 1,
+      })
+      if (leaderboard.length >= limitCount) break
+    }
 
     const missingNames = leaderboard.filter((entry) => !entry.playerName)
     if (missingNames.length > 0) {
