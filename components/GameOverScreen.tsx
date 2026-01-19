@@ -28,6 +28,7 @@ export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNe
   const guestScoreKey = 'base-rush-guest-high-score'
 
   const loadHighScore = useCallback(async () => {
+    if (!walletAddress) return
     try {
       const playerScore = await getHighScore(walletAddress)
       if (playerScore) {
