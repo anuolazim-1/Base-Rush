@@ -20,6 +20,8 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
   const [saveError, setSaveError] = useState<string | null>(null)
   const [highScore, setHighScore] = useState<number | null>(null)
   const [isNewRecord, setIsNewRecord] = useState(false)
+  const [playerName, setPlayerName] = useState<string | null>(null)
+  const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const hasSavedRef = useRef(false)
 
   const loadHighScore = useCallback(async () => {
@@ -103,6 +105,33 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
     handleSaveScore()
   }, [walletAddress, gameState.score, handleSaveScore])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedName = localStorage.getItem(`base-rush-player-name:${walletAddress.toLowerCase()}`)
+    setPlayerName(storedName)
+  }, [walletAddress])
+
+  const distance = Math.floor(gameState.distance)
+  const bestScore = highScore ? Math.max(highScore, gameState.score) : gameState.score
+  const shareText = `${playerName ? `${playerName} just` : 'I just'} hit ${bestScore} points (${distance}m, ${gameState.coins} coins) on Base in Base Rush! https://base-rush-tg9s.vercel.app/`
+  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
+
+  const handleShareOnX = () => {
+    if (typeof window === 'undefined') return
+    window.open(shareUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleCopyShare = async () => {
+    if (typeof navigator === 'undefined') return
+    try {
+      await navigator.clipboard.writeText(shareText)
+      setCopyStatus('Copied!')
+    } catch (error) {
+      console.error('Failed to copy share text:', error)
+      setCopyStatus('Copy failed')
+    }
+  }
+
   return (
     <div className="game-over-screen">
       <div className="game-over-content">
@@ -158,6 +187,16 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
             </button>
           </div>
         )}
+
+        <div className="share-actions">
+          <button onClick={handleShareOnX} className="btn-primary">
+            Share on X
+          </button>
+          <button onClick={handleCopyShare} className="btn-secondary">
+            Copy share text
+          </button>
+          {copyStatus && <p className="share-status">{copyStatus}</p>}
+        </div>
 
         <div className="game-over-actions">
           <button onClick={onNewGame} className="btn-primary btn-large">
