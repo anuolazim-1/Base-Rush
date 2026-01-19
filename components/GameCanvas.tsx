@@ -229,7 +229,6 @@ export function GameCanvas({
         ref={canvasRef}
         id="game-canvas"
         className="game-canvas"
-        style={{ width: '100%', maxWidth: '800px', height: '600px', border: '2px solid #0052FF', borderRadius: '8px' }}
       />
 
       {!state?.isPlaying && !state?.isGameOver && (

@@ -47,6 +47,15 @@ export function GameScreen() {
   }, [])
 
   useEffect(() => {
+    if (typeof document === 'undefined') return
+    const isGameplayActive = isAuthenticated && !gameState?.isGameOver
+    document.body.classList.toggle('gameplay-active', isGameplayActive)
+    return () => {
+      document.body.classList.remove('gameplay-active')
+    }
+  }, [isAuthenticated, gameState?.isGameOver])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const hideHowTo = localStorage.getItem('base-rush-hide-howto')
     if (!hideHowTo) {
@@ -107,10 +116,12 @@ export function GameScreen() {
           >
             {showLeaderboard ? 'Hide' : 'Show'} Leaderboard
           </button>
-          <WalletConnect
-            onAuthenticated={handleAuthenticated}
-            onDisconnected={handleDisconnected}
-          />
+          {isAuthenticated && (
+            <WalletConnect
+              onAuthenticated={handleAuthenticated}
+              onDisconnected={handleDisconnected}
+            />
+          )}
         </div>
       </header>
 
@@ -169,11 +180,39 @@ export function GameScreen() {
         )}
 
         {!isAuthenticated ? (
-          <div className="auth-prompt">
-            <h2>Connect Your Wallet to Play</h2>
-            <p>Connect your Base wallet to start playing and save your scores.</p>
-            <p>Use the Connect button in the header to continue.</p>
-          </div>
+          <section className="landing">
+            <div className="landing-hero">
+              <div className="hero-copy">
+                <span className="hero-kicker">Base Network Arcade</span>
+                <h2 className="hero-title">Dash, jump, and stack Base Coins.</h2>
+                <p className="hero-subtitle">
+                  Base Rush is a fast, on-chain runner where every score is tied to your wallet.
+                </p>
+                <div className="hero-cta">
+                  <WalletConnect
+                    onAuthenticated={handleAuthenticated}
+                    onDisconnected={handleDisconnected}
+                    buttonClassName="btn-large cta-glow"
+                  />
+                  <p className="hero-note">Connect once to save scores and climb the leaderboard.</p>
+                </div>
+              </div>
+              <div className="hero-media">
+                <div className="gif-frame">
+                  <div className="gif-placeholder">Gameplay preview coming soon</div>
+                </div>
+              </div>
+            </div>
+            <div className="landing-howto">
+              <h3>How to Play</h3>
+              <ul>
+                <li>Tap or press Space to jump.</li>
+                <li>Collect coins to boost your score.</li>
+                <li>Avoid obstacles to keep the run alive.</li>
+                <li>Save your score with your wallet.</li>
+              </ul>
+            </div>
+          </section>
         ) : gameState?.isGameOver ? (
           <GameOverScreen 
             gameState={gameState}

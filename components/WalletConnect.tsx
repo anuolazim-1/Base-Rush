@@ -8,6 +8,7 @@ import type { Address } from 'viem'
 interface WalletConnectProps {
   onAuthenticated: (address: Address) => void
   onDisconnected?: () => void
+  buttonClassName?: string
 }
 
 /**
@@ -19,7 +20,7 @@ interface WalletConnectProps {
  * 3. Once connected, user signs a SIWE message (gasless)
  * 4. Signature is stored as authentication proof
  */
-export function WalletConnect({ onAuthenticated, onDisconnected }: WalletConnectProps) {
+export function WalletConnect({ onAuthenticated, onDisconnected, buttonClassName }: WalletConnectProps) {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
@@ -119,6 +120,9 @@ export function WalletConnect({ onAuthenticated, onDisconnected }: WalletConnect
     disconnect()
   }
 
+  const buttonClass = ['btn-primary', buttonClassName].filter(Boolean).join(' ')
+  const loadingHint = isPending || isSigning
+
   if (isConnected && address) {
     const session = getAuthSession()
     if (session) {
@@ -139,14 +143,18 @@ export function WalletConnect({ onAuthenticated, onDisconnected }: WalletConnect
     return (
       <div className="wallet-auth">
         {isSigning ? (
-          <button disabled className="btn-primary">
-            Signing message...
+          <button disabled className={`${buttonClass} btn-loading`}>
+            <span className="btn-content">
+              <span className="btn-spinner" aria-hidden="true" />
+              Signing message...
+            </span>
           </button>
         ) : (
-          <button onClick={handleSignIn} className="btn-primary">
+          <button onClick={handleSignIn} className={buttonClass}>
             Sign In to Play
           </button>
         )}
+        {loadingHint && <p className="wallet-loading">Check your wallet to continue.</p>}
         {error && <p className="error-message">{error}</p>}
       </div>
     )
@@ -157,10 +165,14 @@ export function WalletConnect({ onAuthenticated, onDisconnected }: WalletConnect
       <button 
         onClick={handleConnect} 
         disabled={isPending}
-        className="btn-primary"
+        className={`${buttonClass} ${isPending ? 'btn-loading' : ''}`}
       >
-        {isPending ? 'Connecting...' : 'Connect Wallet'}
+        <span className="btn-content">
+          {isPending && <span className="btn-spinner" aria-hidden="true" />}
+          {isPending ? 'Connecting...' : 'Connect Wallet'}
+        </span>
       </button>
+      {loadingHint && <p className="wallet-loading">Check your wallet to continue.</p>}
       {error && <p className="error-message">{error}</p>}
     </div>
   )
