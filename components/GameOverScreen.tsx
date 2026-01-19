@@ -7,14 +7,15 @@ import type { GameState, PlayerScore } from '@/types'
 
 interface GameOverScreenProps {
   gameState: GameState
-  walletAddress: Address
+  walletAddress?: Address
+  isGuest?: boolean
   onNewGame: () => void
 }
 
 /**
  * GameOverScreen displays final score and handles score submission
  */
-export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOverScreenProps) {
+export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNewGame }: GameOverScreenProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -22,7 +23,9 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
   const [isNewRecord, setIsNewRecord] = useState(false)
   const [playerName, setPlayerName] = useState<string | null>(null)
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
+  const [localHighScore, setLocalHighScore] = useState<number | null>(null)
   const hasSavedRef = useRef(false)
+  const guestScoreKey = 'base-rush-guest-high-score'
 
   const loadHighScore = useCallback(async () => {
     try {
@@ -41,7 +44,7 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
   }, [walletAddress, gameState.score])
 
   const handleSaveScore = useCallback(async () => {
-    if (!walletAddress) {
+    if (!walletAddress || isGuest) {
       return
     }
 
@@ -94,25 +97,51 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
 
   useEffect(() => {
     // Load player's high score and check if this is a new record
-    if (!walletAddress) return
+    if (!walletAddress || isGuest) return
     loadHighScore()
-  }, [walletAddress, gameState.score, loadHighScore])
+  }, [walletAddress, gameState.score, loadHighScore, isGuest])
 
   useEffect(() => {
     // Auto-save score when component mounts
-    if (!walletAddress || hasSavedRef.current) return
+    if (!walletAddress || hasSavedRef.current || isGuest) return
     hasSavedRef.current = true
     handleSaveScore()
-  }, [walletAddress, gameState.score, handleSaveScore])
+  }, [walletAddress, gameState.score, handleSaveScore, isGuest])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (!walletAddress || isGuest) return
     const storedName = localStorage.getItem(`base-rush-player-name:${walletAddress.toLowerCase()}`)
     setPlayerName(storedName)
-  }, [walletAddress])
+  }, [walletAddress, isGuest])
+
+  useEffect(() => {
+    if (!isGuest || typeof window === 'undefined') return
+    const stored = localStorage.getItem(guestScoreKey)
+    const parsed = stored ? Number.parseInt(stored, 10) : null
+    const storedScore = Number.isFinite(parsed) ? parsed : null
+    setLocalHighScore(storedScore)
+
+    if (!storedScore) {
+      setIsNewRecord(true)
+      localStorage.setItem(guestScoreKey, String(gameState.score))
+      setLocalHighScore(gameState.score)
+      return
+    }
+
+    if (gameState.score > storedScore) {
+      setIsNewRecord(true)
+      localStorage.setItem(guestScoreKey, String(gameState.score))
+      setLocalHighScore(gameState.score)
+    } else {
+      setIsNewRecord(false)
+    }
+  }, [gameState.score, isGuest])
 
   const distance = Math.floor(gameState.distance)
-  const bestScore = highScore ? Math.max(highScore, gameState.score) : gameState.score
+  const bestScore = isGuest
+    ? (localHighScore ? Math.max(localHighScore, gameState.score) : gameState.score)
+    : (highScore ? Math.max(highScore, gameState.score) : gameState.score)
   const shareText = `${playerName ? `${playerName} just` : 'I just'} hit ${bestScore} points (${distance}m, ${gameState.coins} coins) on Base in Base Rush! https://base-rush-tg9s.vercel.app/`
   const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
 
@@ -159,27 +188,33 @@ export function GameOverScreen({ gameState, walletAddress, onNewGame }: GameOver
             <div className="stat-value">{Math.floor(gameState.distance)}m</div>
           </div>
 
-          {highScore !== null && (
+          {highScore !== null && !isGuest && (
             <div className="stat-card">
-              <div className="stat-label">Your Best Score</div>
+              <div className="stat-label">Global (Wallet) Best</div>
               <div className="stat-value">{highScore}</div>
+            </div>
+          )}
+          {isGuest && (
+            <div className="stat-card">
+              <div className="stat-label">Local (Guest) Best</div>
+              <div className="stat-value">{bestScore}</div>
             </div>
           )}
         </div>
 
-        {isSaving && (
+        {isSaving && !isGuest && (
           <div className="save-status">
             <p>Saving your score...</p>
           </div>
         )}
 
-        {saveSuccess && (
+        {saveSuccess && !isGuest && (
           <div className="save-status success">
             <p>✓ Score saved successfully!</p>
           </div>
         )}
 
-        {saveError && (
+        {saveError && !isGuest && (
           <div className="save-status error">
             <p>{saveError}</p>
             <button onClick={handleSaveScore} className="btn-secondary btn-small">

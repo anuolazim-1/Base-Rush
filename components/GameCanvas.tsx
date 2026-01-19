@@ -6,7 +6,7 @@ import type { Address } from 'viem'
 import type { GameState } from '@/types'
 
 interface GameCanvasProps {
-  walletAddress: Address
+  walletAddress?: Address
   onGameStateChange: (state: GameState) => void
   autoStart?: boolean
   onAutoStartHandled?: () => void
@@ -16,7 +16,6 @@ interface GameCanvasProps {
  * GameCanvas component manages the game engine and canvas rendering
  */
 export function GameCanvas({
-  walletAddress,
   onGameStateChange,
   autoStart = false,
   onAutoStartHandled,

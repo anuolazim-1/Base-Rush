@@ -38,7 +38,10 @@ export function Leaderboard() {
   return (
     <div className="leaderboard-panel">
       <div className="leaderboard-header">
-        <h2>Global Leaderboard</h2>
+        <div>
+          <h2>Global Leaderboard</h2>
+          <p className="leaderboard-note">Global (Wallet) only • Guest scores stay local</p>
+        </div>
         <button onClick={loadLeaderboard} className="btn-secondary btn-small">
           Refresh
         </button>

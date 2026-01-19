@@ -297,6 +297,11 @@ body.gameplay-active .game-main {
   font-size: 0.85rem;
 }
 
+.btn-secondary.btn-large {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
+
 .btn-disconnect {
   padding: 0.4rem 0.8rem;
   background: rgba(255, 0, 0, 0.2);
@@ -606,6 +611,24 @@ body.gameplay-active .game-main {
   margin-top: 2rem;
 }
 
+.guest-cta {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(0, 31, 92, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.guest-cta p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+}
+
 .share-actions {
   display: flex;
   flex-wrap: wrap;
@@ -755,6 +778,12 @@ body.gameplay-active .game-main {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.leaderboard-note {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .leaderboard-loading,

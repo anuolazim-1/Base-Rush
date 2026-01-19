@@ -14,6 +14,7 @@ export function GameScreen() {
   const [walletAddress, setWalletAddress] = useState<Address | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [isGuest, setIsGuest] = useState(false)
   const [playerName, setPlayerName] = useState('')
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -24,6 +25,7 @@ export function GameScreen() {
   const handleAuthenticated = useCallback((address: Address) => {
     setWalletAddress(address)
     setIsAuthenticated(true)
+    setIsGuest(false)
   }, [])
 
   const handleGameStateChange = useCallback((state: GameState) => {
@@ -40,6 +42,7 @@ export function GameScreen() {
     setWalletAddress(null)
     setGameState(null)
     setAutoStartGame(false)
+    setIsGuest(false)
   }, [])
 
   const handleAutoStartHandled = useCallback(() => {
@@ -48,12 +51,12 @@ export function GameScreen() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return
-    const isGameplayActive = isAuthenticated && !gameState?.isGameOver
+    const isGameplayActive = (isAuthenticated || isGuest) && !gameState?.isGameOver
     document.body.classList.toggle('gameplay-active', isGameplayActive)
     return () => {
       document.body.classList.remove('gameplay-active')
     }
-  }, [isAuthenticated, gameState?.isGameOver])
+  }, [isAuthenticated, isGuest, gameState?.isGameOver])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -61,6 +64,15 @@ export function GameScreen() {
     if (!hideHowTo) {
       setShowHowTo(true)
     }
+  }, [])
+
+  const handleGuestStart = useCallback(() => {
+    setIsGuest(true)
+    setIsAuthenticated(false)
+    setWalletAddress(null)
+    setGameState(null)
+    setShowLeaderboard(false)
+    setAutoStartGame(true)
   }, [])
 
   const handleCloseHowTo = useCallback(() => {
@@ -179,7 +191,7 @@ export function GameScreen() {
           </div>
         )}
 
-        {!isAuthenticated ? (
+        {!isAuthenticated && !isGuest ? (
           <section className="landing">
             <div className="landing-hero">
               <div className="hero-copy">
@@ -194,6 +206,9 @@ export function GameScreen() {
                     onDisconnected={handleDisconnected}
                     buttonClassName="btn-large cta-glow"
                   />
+                  <button className="btn-secondary btn-large" onClick={handleGuestStart}>
+                    Play as Guest
+                  </button>
                   <p className="hero-note">Connect once to save scores and climb the leaderboard.</p>
                 </div>
               </div>
@@ -214,14 +229,27 @@ export function GameScreen() {
             </div>
           </section>
         ) : gameState?.isGameOver ? (
+          <>
           <GameOverScreen 
             gameState={gameState}
-            walletAddress={walletAddress!}
+            walletAddress={walletAddress ?? undefined}
+            isGuest={isGuest}
             onNewGame={handleNewGame}
           />
+          {isGuest && (
+            <div className="guest-cta">
+              <p>Connect wallet to save to the global leaderboard.</p>
+              <WalletConnect
+                onAuthenticated={handleAuthenticated}
+                onDisconnected={handleDisconnected}
+                buttonClassName="btn-large"
+              />
+            </div>
+          )}
+          </>
         ) : (
           <GameCanvas 
-            walletAddress={walletAddress!}
+            walletAddress={walletAddress ?? undefined}
             onGameStateChange={handleGameStateChange}
             autoStart={autoStartGame}
             onAutoStartHandled={handleAutoStartHandled}
