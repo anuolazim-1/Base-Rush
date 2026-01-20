@@ -100,6 +100,10 @@ export class GameEngine {
   private airborneFrame: number | null = null
   private debugHitbox: boolean = false
   private lastPlayerRenderMode: 'sprite' | 'block' | null = null
+  private spritePath: string = '/runner-sprite.png'
+  private logSpriteLoadOnce: boolean = false
+  private forceSpriteRender: boolean = false
+  private showSpriteDebug: boolean = false
   private jumpHoldActive: boolean = false
   private jumpHoldTime: number = 0
   private maxJumpHoldMs: number = 180
@@ -151,10 +155,14 @@ export class GameEngine {
 
     this.setupCanvas()
 
+    if (typeof window !== 'undefined') {
+      this.showSpriteDebug = window.location.search.includes('debug=1')
+    }
+
     if (typeof Image !== 'undefined') {
       this.spriteImage = new Image()
       this.spriteImage.crossOrigin = 'anonymous'
-      this.spriteImage.src = '/runner-sprite.png'
+      this.spriteImage.src = this.spritePath
       this.spriteImage.onload = () => {
         this.spriteImage?.decode?.()
           .catch(() => undefined)
@@ -165,11 +173,21 @@ export class GameEngine {
               console.warn('Sprite prep failed, using raw image.', error)
             }
             this.spriteReady = true
+            this.forceSpriteRender = true
+            if (!this.logSpriteLoadOnce) {
+              console.log(`SPRITE_LOAD_SUCCESS: ${this.spritePath}`)
+              this.logSpriteLoadOnce = true
+            }
           })
       }
       this.spriteImage.onerror = () => {
         this.spriteError = true
         this.spriteReady = false
+        this.forceSpriteRender = false
+        if (!this.logSpriteLoadOnce) {
+          console.error(`SPRITE_LOAD_ERROR: ${this.spritePath}`)
+          this.logSpriteLoadOnce = true
+        }
       }
     }
   }
@@ -663,11 +681,12 @@ export class GameEngine {
 
     // Draw player
     const spriteSource = this.spriteCanvas ?? this.spriteImage
-    const useSpritePlayer = !!spriteSource &&
-      spriteSource.width > 0 &&
-      spriteSource.height > 0 &&
-      !this.spriteError &&
-      (this.spriteReady || this.spriteImage?.complete)
+    const useSpritePlayer = this.forceSpriteRender ||
+      (!!spriteSource &&
+        spriteSource.width > 0 &&
+        spriteSource.height > 0 &&
+        this.spriteReady &&
+        !this.spriteError)
 
     const nextMode: 'sprite' | 'block' = useSpritePlayer ? 'sprite' : 'block'
     if (this.lastPlayerRenderMode !== nextMode) {
@@ -720,6 +739,17 @@ export class GameEngine {
       ctx.strokeStyle = '#FFD700'
       ctx.lineWidth = 2
       ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
+      ctx.restore()
+    }
+
+    if (this.showSpriteDebug) {
+      ctx.save()
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+      ctx.fillRect(12, 12, 260, 44)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = '12px Arial'
+      ctx.fillText(`spriteLoaded=${this.spriteReady}`, 20, 30)
+      ctx.fillText(`spritePath=${this.spritePath}`, 20, 46)
       ctx.restore()
     }
 
