@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { WalletConnect } from './WalletConnect'
 import { GameCanvas } from './GameCanvas'
 import { Leaderboard } from './Leaderboard'
@@ -18,12 +18,15 @@ export function GameScreen() {
   const [showRewards, setShowRewards] = useState(false)
   const [isGuest, setIsGuest] = useState(false)
   const [pointsBalance, setPointsBalance] = useState<number | null>(null)
+  const [dailyStreak, setDailyStreak] = useState(0)
+  const [lastStreakDate, setLastStreakDate] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [showHowTo, setShowHowTo] = useState(false)
   const [dontShowHowTo, setDontShowHowTo] = useState(false)
   const [autoStartGame, setAutoStartGame] = useState(false)
+  const streakUpdatedRef = useRef(false)
 
   const handleAuthenticated = useCallback((address: Address) => {
     setWalletAddress(address)
@@ -71,6 +74,14 @@ export function GameScreen() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedStreak = Number(localStorage.getItem('base-rush-streak-count') || 0)
+    const storedDate = localStorage.getItem('base-rush-streak-date')
+    setDailyStreak(Number.isFinite(storedStreak) ? storedStreak : 0)
+    setLastStreakDate(storedDate)
+  }, [])
+
+  useEffect(() => {
     if (!walletAddress || !isAuthenticated) return
     getPlayerProgression(walletAddress)
       .then((progression) => {
@@ -82,6 +93,29 @@ export function GameScreen() {
       })
       .catch(() => setPointsBalance(null))
   }, [walletAddress, isAuthenticated])
+
+  useEffect(() => {
+    if (!gameState?.isGameOver) {
+      streakUpdatedRef.current = false
+      return
+    }
+    if (streakUpdatedRef.current || typeof window === 'undefined') return
+    streakUpdatedRef.current = true
+    const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const storedDate = localStorage.getItem('base-rush-streak-date')
+    const storedStreak = Number(localStorage.getItem('base-rush-streak-count') || 0)
+    if (storedDate === today) {
+      setDailyStreak(storedStreak)
+      setLastStreakDate(storedDate)
+      return
+    }
+    const nextStreak = storedDate === yesterday ? storedStreak + 1 : 1
+    localStorage.setItem('base-rush-streak-count', String(nextStreak))
+    localStorage.setItem('base-rush-streak-date', today)
+    setDailyStreak(nextStreak)
+    setLastStreakDate(today)
+  }, [gameState?.isGameOver])
 
   const handleGuestStart = useCallback(() => {
     setIsGuest(true)
@@ -180,6 +214,12 @@ export function GameScreen() {
             ) : (
               <p className="rewards-note">Connect your wallet to track points globally.</p>
             )}
+            <div className="rewards-streak">
+              <p>Daily streak: {dailyStreak} day{dailyStreak === 1 ? '' : 's'}</p>
+              <p className="rewards-note">
+                {lastStreakDate ? 'Complete a run each day to keep it going.' : 'Play one run today to start a streak.'}
+              </p>
+            </div>
           </div>
         )}
         

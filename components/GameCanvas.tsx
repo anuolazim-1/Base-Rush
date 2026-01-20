@@ -33,6 +33,12 @@ export function GameCanvas({
   const audioContextRef = useRef<AudioContext | null>(null)
   const muteHydratedRef = useRef(false)
 
+  const triggerHaptic = (duration: number) => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(duration)
+    }
+  }
+
   // Memoize callback to avoid unnecessary re-renders
   const stableOnGameStateChange = useCallback(onGameStateChange, [onGameStateChange])
 
@@ -69,9 +75,11 @@ export function GameCanvas({
     const events: GameEngineEvents = {
       onCoinCollected: () => {
         playTone(820, 90, 'triangle', 0.06)
+        triggerHaptic(10)
       },
       onGameOver: () => {
         playTone(160, 420, 'sawtooth', 0.08)
+        triggerHaptic(40)
       },
     }
 
@@ -92,12 +100,19 @@ export function GameCanvas({
         } else {
           engine.jump()
           playTone(420, 120, 'square', 0.05)
+          triggerHaptic(8)
         }
       } else if (e.key === 'h' || e.key === 'H') {
         engine.toggleHitboxDebug()
       } else if (e.key === 'p' || e.key === 'P') {
         engine.togglePause()
         setIsPaused(engine.getState().isPaused)
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.key === ' ') {
+        engine.releaseJump()
       }
     }
 
@@ -113,11 +128,19 @@ export function GameCanvas({
       } else {
         engine.jump()
         playTone(420, 120, 'square', 0.05)
+        triggerHaptic(8)
       }
     }
 
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault()
+      engine.releaseJump()
+    }
+
     window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
     canvasRef.current.addEventListener('touchstart', handleTouchStart)
+    canvasRef.current.addEventListener('touchend', handleTouchEnd)
 
     // Update game state periodically
     const stateInterval = setInterval(() => {
@@ -141,9 +164,11 @@ export function GameCanvas({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('resize', handleResize)
       if (canvasRef.current) {
         canvasRef.current.removeEventListener('touchstart', handleTouchStart)
+        canvasRef.current.removeEventListener('touchend', handleTouchEnd)
       }
       clearInterval(stateInterval)
       if (engine) {
@@ -190,11 +215,18 @@ export function GameCanvas({
     }
   }
 
-  const handleJumpClick = () => {
+  const handleJumpPress = () => {
     if (engineRef.current) {
       initAudio()
       engineRef.current.jump()
       playTone(420, 120, 'square', 0.05)
+      triggerHaptic(8)
+    }
+  }
+
+  const handleJumpRelease = () => {
+    if (engineRef.current) {
+      engineRef.current.releaseJump()
     }
   }
 
@@ -265,7 +297,12 @@ export function GameCanvas({
           <button onClick={handlePauseClick} className="btn-control">
             ⏸ Pause
           </button>
-          <button onClick={handleJumpClick} className="btn-control btn-jump">
+          <button
+            onPointerDown={handleJumpPress}
+            onPointerUp={handleJumpRelease}
+            onPointerLeave={handleJumpRelease}
+            className="btn-control btn-jump"
+          >
             ⬆ Jump
           </button>
         </div>

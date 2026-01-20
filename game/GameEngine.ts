@@ -99,6 +99,9 @@ export class GameEngine {
   private spriteFrameTimer: number = 0
   private airborneFrame: number | null = null
   private debugHitbox: boolean = false
+  private jumpHoldActive: boolean = false
+  private jumpHoldTime: number = 0
+  private maxJumpHoldMs: number = 180
 
   constructor(canvas: HTMLCanvasElement, config?: Partial<GameConfig>, events?: GameEngineEvents) {
     this.canvas = canvas
@@ -240,6 +243,8 @@ export class GameEngine {
     this.spriteFrame = 0
     this.spriteFrameTimer = 0
     this.airborneFrame = null
+    this.jumpHoldActive = false
+    this.jumpHoldTime = 0
 
     this.lastFrameTime = performance.now()
     this.gameLoop(this.lastFrameTime)
@@ -267,6 +272,12 @@ export class GameEngine {
 
     this.player.velocityY = this.config.jumpVelocity
     this.player.isJumping = true
+    this.jumpHoldActive = true
+    this.jumpHoldTime = 0
+  }
+
+  releaseJump() {
+    this.jumpHoldActive = false
   }
 
   /**
@@ -354,8 +365,13 @@ export class GameEngine {
   }
 
   private updatePlayer(deltaTime: number) {
-    // Apply gravity
-    this.player.velocityY += this.config.gravity
+    // Apply gravity (allow short hold for higher jump)
+    const holdingJump = this.player.isJumping && this.jumpHoldActive && this.jumpHoldTime < this.maxJumpHoldMs
+    const gravity = holdingJump ? this.config.gravity * 0.35 : this.config.gravity
+    this.player.velocityY += gravity
+    if (holdingJump) {
+      this.jumpHoldTime += deltaTime
+    }
 
     // Update position
     this.player.y += this.player.velocityY
@@ -365,6 +381,8 @@ export class GameEngine {
       this.player.y = this.player.groundY
       this.player.velocityY = 0
       this.player.isJumping = false
+      this.jumpHoldActive = false
+      this.jumpHoldTime = 0
     }
   }
 
@@ -414,11 +432,25 @@ export class GameEngine {
   }
 
   private spawnObstacle() {
+    const roll = Math.random()
+    let width = 30
+    let height = 50
+    if (roll < 0.55) {
+      width = 28
+      height = 45
+    } else if (roll < 0.85) {
+      width = 36
+      height = 55
+    } else {
+      width = 44
+      height = 40
+    }
+
     const obstacle: Obstacle = {
       x: this.canvas.width / window.devicePixelRatio,
       y: this.player.groundY,
-      width: 30,
-      height: 50,
+      width,
+      height,
       id: Math.random().toString(36).substr(2, 9),
     }
     this.obstacles.push(obstacle)
@@ -532,6 +564,21 @@ export class GameEngine {
     ctx.fillStyle = bgGradient
     ctx.fillRect(0, 0, width, height)
 
+    // Parallax layers for motion depth
+    const farOffset = (this.state.distance * 0.15) % width
+    const midOffset = (this.state.distance * 0.35) % width
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.06)'
+    for (let i = -1; i < 4; i++) {
+      const x = i * 220 - farOffset
+      ctx.fillRect(x, 60, 140, 8)
+      ctx.fillRect(x + 40, 90, 160, 6)
+    }
+    ctx.fillStyle = 'rgba(0, 82, 255, 0.25)'
+    for (let i = -1; i < 4; i++) {
+      const x = i * 260 - midOffset
+      ctx.fillRect(x, this.player.groundY - 70, 200, 18)
+    }
+
     // Speed lines
     ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 + speedFactor * 0.2})`
     ctx.lineWidth = 1
@@ -551,6 +598,17 @@ export class GameEngine {
     ctx.fillStyle = groundGradient
     const groundY = this.player.groundY
     ctx.fillRect(0, groundY, width, height - groundY)
+
+    // Ground texture lines
+    const groundOffset = (this.state.distance * 0.9) % 60
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'
+    ctx.lineWidth = 2
+    for (let x = -60; x < width + 60; x += 60) {
+      ctx.beginPath()
+      ctx.moveTo(x - groundOffset, groundY + 22)
+      ctx.lineTo(x - groundOffset + 24, groundY + 22)
+      ctx.stroke()
+    }
 
     // Draw player
     if ((this.spriteCanvas || this.spriteImage) && this.spriteReady && !this.spriteError) {

@@ -342,6 +342,10 @@ body.gameplay-active .game-main {
   background: linear-gradient(135deg, #00ff88 0%, #0052FF 100%);
 }
 
+.btn-jump {
+  font-size: 1.05rem;
+}
+
 /* Auth Prompt */
 .auth-prompt {
   text-align: center;
@@ -808,6 +812,13 @@ body.gameplay-active .game-main {
   font-size: 1rem;
 }
 
+.rewards-streak {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .leaderboard-header {
   display: flex;
   justify-content: space-between;
@@ -944,6 +955,11 @@ body.gameplay-active .game-main {
 
   .btn-control {
     width: 100%;
+  }
+
+  .btn-jump {
+    font-size: 1.2rem;
+    padding: 1rem 1.5rem;
   }
 
   .landing {
