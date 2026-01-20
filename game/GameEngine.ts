@@ -152,13 +152,19 @@ export class GameEngine {
 
     if (typeof Image !== 'undefined') {
       this.spriteImage = new Image()
+      this.spriteImage.crossOrigin = 'anonymous'
       this.spriteImage.src = '/runner-sprite.png'
       this.spriteImage.onload = () => {
-        this.prepareSpriteCanvas()
-        this.spriteReady = true
+        this.spriteImage?.decode?.()
+          .catch(() => undefined)
+          .finally(() => {
+            this.prepareSpriteCanvas()
+            this.spriteReady = true
+          })
       }
       this.spriteImage.onerror = () => {
         this.spriteError = true
+        this.spriteReady = false
       }
     }
   }
@@ -611,13 +617,18 @@ export class GameEngine {
     }
 
     // Draw player
-    if ((this.spriteCanvas || this.spriteImage) && this.spriteReady && !this.spriteError) {
+    const spriteSource = this.spriteCanvas ?? this.spriteImage
+    const canDrawSprite = spriteSource &&
+      spriteSource.width > 0 &&
+      spriteSource.height > 0 &&
+      !this.spriteError &&
+      (this.spriteReady || this.spriteImage?.complete)
+    if (canDrawSprite) {
       ctx.imageSmoothingEnabled = false
       const columns = 4
       const rows = 2
-      const source = this.spriteCanvas ?? this.spriteImage!
-      const frameWidth = source.width / columns
-      const frameHeight = source.height / rows
+      const frameWidth = spriteSource.width / columns
+      const frameHeight = spriteSource.height / rows
       const activeFrame = this.player.isJumping && this.airborneFrame !== null
         ? this.airborneFrame
         : this.spriteFrame
@@ -631,7 +642,7 @@ export class GameEngine {
       const drawY = this.player.y + this.player.height - drawHeight
 
       ctx.drawImage(
-        source,
+        spriteSource,
         frameX,
         frameY,
         frameWidth,
