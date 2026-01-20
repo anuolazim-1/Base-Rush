@@ -34,10 +34,13 @@ export async function saveScore(score: PlayerScore): Promise<void> {
   const db = getDb()
 
   try {
-    await addDoc(collection(db, SCORES_COLLECTION), {
-      ...score,
-      timestamp: Timestamp.fromMillis(score.timestamp),
-    })
+    const payload = Object.fromEntries(
+      Object.entries({
+        ...score,
+        timestamp: Timestamp.fromMillis(score.timestamp),
+      }).filter(([, value]) => value !== undefined)
+    )
+    await addDoc(collection(db, SCORES_COLLECTION), payload)
   } catch (error) {
     console.error('Error saving score:', error)
     throw error
