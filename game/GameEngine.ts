@@ -90,6 +90,13 @@ export class GameEngine {
   private screenFlashTime: number = 0
   private postGameEffectTime: number = 0
 
+  // Sprite rendering
+  private spriteImage: HTMLImageElement | null = null
+  private spriteReady: boolean = false
+  private spriteError: boolean = false
+  private spriteFrame: number = 0
+  private spriteFrameTimer: number = 0
+
   constructor(canvas: HTMLCanvasElement, config?: Partial<GameConfig>, events?: GameEngineEvents) {
     this.canvas = canvas
     const context = canvas.getContext('2d')
@@ -136,6 +143,17 @@ export class GameEngine {
     }
 
     this.setupCanvas()
+
+    if (typeof Image !== 'undefined') {
+      this.spriteImage = new Image()
+      this.spriteImage.src = '/runner-sprite.png'
+      this.spriteImage.onload = () => {
+        this.spriteReady = true
+      }
+      this.spriteImage.onerror = () => {
+        this.spriteError = true
+      }
+    }
   }
 
   private setupCanvas() {
@@ -181,6 +199,8 @@ export class GameEngine {
     this.screenShakeTime = 0
     this.screenFlashTime = 0
     this.postGameEffectTime = 0
+    this.spriteFrame = 0
+    this.spriteFrameTimer = 0
 
     this.lastFrameTime = performance.now()
     this.gameLoop(this.lastFrameTime)
@@ -271,6 +291,19 @@ export class GameEngine {
     this.updateCoinEffects(deltaTime)
     this.updateSpeedLines(deltaTime)
     this.updateScreenEffects(deltaTime)
+    this.updateSpriteAnimation(deltaTime)
+  }
+
+  private updateSpriteAnimation(deltaTime: number) {
+    if (!this.state.isPlaying || this.state.isPaused || this.state.isGameOver) return
+    const baseFrameMs = 120
+    const speedFactor = Math.max(1, this.gameSpeed / this.config.initialSpeed)
+    const frameDuration = baseFrameMs / speedFactor
+    this.spriteFrameTimer += deltaTime
+    while (this.spriteFrameTimer >= frameDuration) {
+      this.spriteFrameTimer -= frameDuration
+      this.spriteFrame = (this.spriteFrame + 1) % 8
+    }
   }
 
   private updatePlayer(deltaTime: number) {
@@ -471,14 +504,42 @@ export class GameEngine {
     ctx.fillRect(0, groundY, width, height - groundY)
 
     // Draw player
-    const playerGradient = ctx.createLinearGradient(this.player.x, this.player.y, this.player.x, this.player.y + this.player.height)
-    playerGradient.addColorStop(0, '#FFFFFF')
-    playerGradient.addColorStop(1, '#C9D9FF')
-    ctx.fillStyle = playerGradient
-    ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height)
-    ctx.strokeStyle = '#7FA6FF'
-    ctx.lineWidth = 2
-    ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
+    if (this.spriteImage && this.spriteReady && !this.spriteError) {
+      ctx.imageSmoothingEnabled = false
+      const columns = 4
+      const rows = 2
+      const frameWidth = this.spriteImage.width / columns
+      const frameHeight = this.spriteImage.height / rows
+      const frameX = (this.spriteFrame % columns) * frameWidth
+      const frameY = Math.floor(this.spriteFrame / columns) * frameHeight
+
+      const scale = 1.4
+      const drawWidth = this.player.width * scale
+      const drawHeight = this.player.height * scale
+      const drawX = this.player.x - (drawWidth - this.player.width) / 2
+      const drawY = this.player.y - (drawHeight - this.player.height)
+
+      ctx.drawImage(
+        this.spriteImage,
+        frameX,
+        frameY,
+        frameWidth,
+        frameHeight,
+        drawX,
+        drawY,
+        drawWidth,
+        drawHeight
+      )
+    } else {
+      const playerGradient = ctx.createLinearGradient(this.player.x, this.player.y, this.player.x, this.player.y + this.player.height)
+      playerGradient.addColorStop(0, '#FFFFFF')
+      playerGradient.addColorStop(1, '#C9D9FF')
+      ctx.fillStyle = playerGradient
+      ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height)
+      ctx.strokeStyle = '#7FA6FF'
+      ctx.lineWidth = 2
+      ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
+    }
 
     // Draw obstacles (tree shapes)
     this.obstacles.forEach((obstacle) => {

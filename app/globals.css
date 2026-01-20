@@ -482,6 +482,8 @@ body.gameplay-active .game-main {
   border: 2px solid #0052FF;
   width: 100%;
   height: clamp(320px, 60vh, 620px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .game-start-overlay,
