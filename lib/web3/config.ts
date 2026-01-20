@@ -19,12 +19,15 @@ const transports: Record<number, ReturnType<typeof http>> = {
   [baseSepolia.id]: http(),
 }
 
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim()
+const enableWalletConnect = typeof window !== 'undefined' && !!walletConnectProjectId
+
 export const wagmiConfig = createConfig({
   chains: [targetChain],
   connectors: [
     injected(),
     metaMask(),
-    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '' }),
+    ...(enableWalletConnect ? [walletConnect({ projectId: walletConnectProjectId })] : []),
   ],
   transports,
 })
