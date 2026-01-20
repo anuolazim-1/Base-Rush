@@ -694,7 +694,7 @@ export class GameEngine {
       this.lastPlayerRenderMode = nextMode
     }
 
-    if (useSpritePlayer) {
+    if (useSpritePlayer && spriteSource) {
       ctx.imageSmoothingEnabled = false
       const columns = 4
       const rows = 2
