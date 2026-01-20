@@ -70,7 +70,8 @@ export function GameCanvas({
   )
 
   useEffect(() => {
-    if (!canvasRef.current) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
     const events: GameEngineEvents = {
       onCoinCollected: () => {
@@ -84,7 +85,7 @@ export function GameCanvas({
     }
 
     // Initialize game engine
-    const engine = new GameEngine(canvasRef.current, undefined, events)
+    const engine = new GameEngine(canvas, undefined, events)
     engineRef.current = engine
 
     // Handle keyboard input
@@ -139,8 +140,8 @@ export function GameCanvas({
 
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
-    canvasRef.current.addEventListener('touchstart', handleTouchStart)
-    canvasRef.current.addEventListener('touchend', handleTouchEnd)
+    canvas.addEventListener('touchstart', handleTouchStart)
+    canvas.addEventListener('touchend', handleTouchEnd)
 
     // Update game state periodically
     const stateInterval = setInterval(() => {
@@ -166,10 +167,8 @@ export function GameCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('resize', handleResize)
-      if (canvasRef.current) {
-        canvasRef.current.removeEventListener('touchstart', handleTouchStart)
-        canvasRef.current.removeEventListener('touchend', handleTouchEnd)
-      }
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchend', handleTouchEnd)
       clearInterval(stateInterval)
       if (engine) {
         engine.destroy()

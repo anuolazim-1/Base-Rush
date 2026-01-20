@@ -103,7 +103,7 @@ export function GameOverScreen({
     } finally {
       setIsSaving(false)
     }
-  }, [walletAddress, gameState.score, gameState.coins, gameState.distance, highScore])
+  }, [walletAddress, isGuest, gameState.score, gameState.coins, gameState.distance, highScore])
 
   useEffect(() => {
     // Load player's high score and check if this is a new record
