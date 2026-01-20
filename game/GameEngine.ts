@@ -159,7 +159,11 @@ export class GameEngine {
         this.spriteImage?.decode?.()
           .catch(() => undefined)
           .finally(() => {
-            this.prepareSpriteCanvas()
+            try {
+              this.prepareSpriteCanvas()
+            } catch (error) {
+              console.warn('Sprite prep failed, using raw image.', error)
+            }
             this.spriteReady = true
           })
       }
@@ -662,8 +666,8 @@ export class GameEngine {
     const useSpritePlayer = !!spriteSource &&
       spriteSource.width > 0 &&
       spriteSource.height > 0 &&
-      this.spriteReady &&
-      !this.spriteError
+      !this.spriteError &&
+      (this.spriteReady || this.spriteImage?.complete)
 
     const nextMode: 'sprite' | 'block' = useSpritePlayer ? 'sprite' : 'block'
     if (this.lastPlayerRenderMode !== nextMode) {

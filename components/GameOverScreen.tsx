@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { saveScore, getHighScore } from '@/lib/firebase/scores'
+import { hasFirebaseConfig } from '@/lib/firebase/config'
 import { incrementPlayerProgression } from '@/lib/firebase/progression'
 import type { Address } from 'viem'
 import type { GameState, PlayerScore } from '@/types'
@@ -55,6 +56,10 @@ export function GameOverScreen({
 
   const handleSaveScore = useCallback(async () => {
     if (!walletAddress || isGuest) {
+      return
+    }
+    if (!hasFirebaseConfig()) {
+      setSaveError('Score saving is unavailable. Firebase configuration is missing.')
       return
     }
 

@@ -33,6 +33,10 @@ function getMissingConfigKeys(config: Record<string, string>) {
     .map(([key]) => key)
 }
 
+export function hasFirebaseConfig(): boolean {
+  return getMissingConfigKeys(firebaseConfig).length === 0
+}
+
 /**
  * Lazily initialize and return Firestore instance.
  * Ensures single initialization and validates environment variables.
