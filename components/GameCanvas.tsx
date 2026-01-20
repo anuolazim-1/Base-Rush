@@ -10,6 +10,7 @@ interface GameCanvasProps {
   onGameStateChange: (state: GameState) => void
   autoStart?: boolean
   onAutoStartHandled?: () => void
+  pointsBalance?: number | null
 }
 
 /**
@@ -19,6 +20,7 @@ export function GameCanvas({
   onGameStateChange,
   autoStart = false,
   onAutoStartHandled,
+  pointsBalance = null,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<GameEngine | null>(null)
@@ -203,6 +205,12 @@ export function GameCanvas({
           <span className="hud-label">Score:</span>
           <span className="hud-value">{currentScore}</span>
         </div>
+        {pointsBalance !== null && (
+          <div className="hud-stat">
+            <span className="hud-label">Points:</span>
+            <span className="hud-value">{pointsBalance}</span>
+          </div>
+        )}
         <div className="hud-stat">
           <span className="hud-label">Coins:</span>
           <span className="hud-value">{currentCoins}</span>

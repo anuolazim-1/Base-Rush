@@ -386,6 +386,15 @@ body.gameplay-active .game-main {
   gap: 1rem;
 }
 
+.points-badge {
+  padding: 0.45rem 0.9rem;
+  background: rgba(0, 255, 136, 0.15);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: #00ff88;
+}
+
 /* Game Canvas */
 .game-canvas-container {
   position: relative;
@@ -763,6 +772,38 @@ body.gameplay-active .game-main {
   padding: 2rem;
   border-radius: 16px;
   border: 2px solid rgba(0, 255, 136, 0.3);
+}
+
+.rewards-panel {
+  width: 100%;
+  max-width: 600px;
+  background: rgba(0, 31, 92, 0.75);
+  padding: 2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  text-align: center;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.rewards-panel h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #ffffff 0%, #00ff88 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.rewards-balance {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #00ff88;
+  margin-bottom: 0.5rem;
+}
+
+.rewards-note {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1rem;
 }
 
 .leaderboard-header {

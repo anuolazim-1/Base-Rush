@@ -8,13 +8,16 @@ import { GameOverScreen } from './GameOverScreen'
 import type { Address } from 'viem'
 import type { GameState } from '@/types'
 import { savePlayerName } from '@/lib/firebase/players'
+import { getPlayerProgression } from '@/lib/firebase/progression'
 
 export function GameScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [walletAddress, setWalletAddress] = useState<Address | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [showRewards, setShowRewards] = useState(false)
   const [isGuest, setIsGuest] = useState(false)
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -43,6 +46,7 @@ export function GameScreen() {
     setGameState(null)
     setAutoStartGame(false)
     setIsGuest(false)
+    setPointsBalance(null)
   }, [])
 
   const handleAutoStartHandled = useCallback(() => {
@@ -66,12 +70,27 @@ export function GameScreen() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!walletAddress || !isAuthenticated) return
+    getPlayerProgression(walletAddress)
+      .then((progression) => {
+        if (progression) {
+          setPointsBalance(progression.pointsBalance)
+        } else {
+          setPointsBalance(null)
+        }
+      })
+      .catch(() => setPointsBalance(null))
+  }, [walletAddress, isAuthenticated])
+
   const handleGuestStart = useCallback(() => {
     setIsGuest(true)
     setIsAuthenticated(false)
     setWalletAddress(null)
     setGameState(null)
     setShowLeaderboard(false)
+    setShowRewards(false)
+    setPointsBalance(null)
     setAutoStartGame(true)
   }, [])
 
@@ -128,6 +147,17 @@ export function GameScreen() {
           >
             {showLeaderboard ? 'Hide' : 'Show'} Leaderboard
           </button>
+          <button
+            onClick={() => setShowRewards(!showRewards)}
+            className="btn-secondary"
+          >
+            {showRewards ? 'Hide' : 'Show'} Rewards
+          </button>
+          {isAuthenticated && pointsBalance !== null && (
+            <div className="points-badge">
+              Points Balance: {pointsBalance}
+            </div>
+          )}
           {isAuthenticated && (
             <WalletConnect
               onAuthenticated={handleAuthenticated}
@@ -139,6 +169,19 @@ export function GameScreen() {
 
       <main className="game-main">
         {showLeaderboard && <Leaderboard />}
+        {showRewards && (
+          <div className="rewards-panel">
+            <h2>Rewards</h2>
+            {isAuthenticated ? (
+              <>
+                <p className="rewards-balance">Points Balance: {pointsBalance ?? 0}</p>
+                <p className="rewards-note">Token conversion coming soon.</p>
+              </>
+            ) : (
+              <p className="rewards-note">Connect your wallet to track points globally.</p>
+            )}
+          </div>
+        )}
         
         {showHowTo && (
           <div className="how-to-overlay">
@@ -234,6 +277,7 @@ export function GameScreen() {
             gameState={gameState}
             walletAddress={walletAddress ?? undefined}
             isGuest={isGuest}
+            onProgressionUpdated={setPointsBalance}
             onNewGame={handleNewGame}
           />
           {isGuest && (
@@ -253,6 +297,7 @@ export function GameScreen() {
             onGameStateChange={handleGameStateChange}
             autoStart={autoStartGame}
             onAutoStartHandled={handleAutoStartHandled}
+            pointsBalance={isAuthenticated ? pointsBalance : null}
           />
         )}
       </main>

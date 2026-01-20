@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { saveScore, getHighScore } from '@/lib/firebase/scores'
+import { incrementPlayerProgression } from '@/lib/firebase/progression'
 import type { Address } from 'viem'
 import type { GameState, PlayerScore } from '@/types'
 
@@ -9,13 +10,20 @@ interface GameOverScreenProps {
   gameState: GameState
   walletAddress?: Address
   isGuest?: boolean
+  onProgressionUpdated?: (pointsBalance: number | null) => void
   onNewGame: () => void
 }
 
 /**
  * GameOverScreen displays final score and handles score submission
  */
-export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNewGame }: GameOverScreenProps) {
+export function GameOverScreen({
+  gameState,
+  walletAddress,
+  isGuest = false,
+  onProgressionUpdated,
+  onNewGame,
+}: GameOverScreenProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -25,6 +33,7 @@ export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNe
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const [localHighScore, setLocalHighScore] = useState<number | null>(null)
   const hasSavedRef = useRef(false)
+  const hasProgressedRef = useRef(false)
   const guestScoreKey = 'base-rush-guest-high-score'
 
   const loadHighScore = useCallback(async () => {
@@ -110,6 +119,20 @@ export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNe
   }, [walletAddress, gameState.score, handleSaveScore, isGuest])
 
   useEffect(() => {
+    if (!walletAddress || isGuest || hasProgressedRef.current) return
+    hasProgressedRef.current = true
+    incrementPlayerProgression(walletAddress, gameState.coins)
+      .then((progression) => {
+        if (progression) {
+          onProgressionUpdated?.(progression.pointsBalance)
+        }
+      })
+      .catch(() => {
+        onProgressionUpdated?.(null)
+      })
+  }, [walletAddress, gameState.coins, isGuest, onProgressionUpdated])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
     if (!walletAddress || isGuest) return
     const storedName = localStorage.getItem(`base-rush-player-name:${walletAddress.toLowerCase()}`)
@@ -182,6 +205,11 @@ export function GameOverScreen({ gameState, walletAddress, isGuest = false, onNe
           <div className="stat-card">
             <div className="stat-label">Coins Collected</div>
             <div className="stat-value">{gameState.coins}</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-label">Points Earned</div>
+            <div className="stat-value">+{gameState.coins}</div>
           </div>
           
           <div className="stat-card">
