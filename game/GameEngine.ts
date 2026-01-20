@@ -99,6 +99,7 @@ export class GameEngine {
   private spriteFrameTimer: number = 0
   private airborneFrame: number | null = null
   private debugHitbox: boolean = false
+  private lastPlayerRenderMode: 'sprite' | 'block' | null = null
   private jumpHoldActive: boolean = false
   private jumpHoldTime: number = 0
   private maxJumpHoldMs: number = 180
@@ -616,14 +617,61 @@ export class GameEngine {
       ctx.stroke()
     }
 
+    // Draw obstacles (tree shapes)
+    this.obstacles.forEach((obstacle) => {
+      const trunkWidth = obstacle.width * 0.35
+      const trunkHeight = obstacle.height * 0.55
+      const trunkX = obstacle.x + (obstacle.width - trunkWidth) / 2
+      const trunkY = obstacle.y + obstacle.height - trunkHeight
+      const canopyRadius = obstacle.width * 0.55
+      const canopyX = obstacle.x + obstacle.width / 2
+      const canopyY = obstacle.y + canopyRadius
+
+      // Trunk
+      const trunkGradient = ctx.createLinearGradient(trunkX, trunkY, trunkX, trunkY + trunkHeight)
+      trunkGradient.addColorStop(0, '#8D5A2B')
+      trunkGradient.addColorStop(1, '#5A3A1C')
+      ctx.fillStyle = trunkGradient
+      ctx.fillRect(trunkX, trunkY, trunkWidth, trunkHeight)
+      ctx.strokeStyle = '#3E2611'
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(trunkX, trunkY, trunkWidth, trunkHeight)
+
+      // Canopy
+      const canopyGradient = ctx.createRadialGradient(
+        canopyX,
+        canopyY,
+        4,
+        canopyX,
+        canopyY,
+        canopyRadius
+      )
+      canopyGradient.addColorStop(0, '#66BB6A')
+      canopyGradient.addColorStop(1, '#2E7D32')
+      ctx.fillStyle = canopyGradient
+      ctx.beginPath()
+      ctx.arc(canopyX, canopyY, canopyRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#1B5E20'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    })
+
     // Draw player
     const spriteSource = this.spriteCanvas ?? this.spriteImage
-    const canDrawSprite = spriteSource &&
+    const useSpritePlayer = !!spriteSource &&
       spriteSource.width > 0 &&
       spriteSource.height > 0 &&
-      !this.spriteError &&
-      (this.spriteReady || this.spriteImage?.complete)
-    if (canDrawSprite) {
+      this.spriteReady &&
+      !this.spriteError
+
+    const nextMode: 'sprite' | 'block' = useSpritePlayer ? 'sprite' : 'block'
+    if (this.lastPlayerRenderMode !== nextMode) {
+      console.log(`PLAYER_RENDER_MODE: ${nextMode}`)
+      this.lastPlayerRenderMode = nextMode
+    }
+
+    if (useSpritePlayer) {
       ctx.imageSmoothingEnabled = false
       const columns = 4
       const rows = 2
@@ -670,46 +718,6 @@ export class GameEngine {
       ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
       ctx.restore()
     }
-
-    // Draw obstacles (tree shapes)
-    this.obstacles.forEach((obstacle) => {
-      const trunkWidth = obstacle.width * 0.35
-      const trunkHeight = obstacle.height * 0.55
-      const trunkX = obstacle.x + (obstacle.width - trunkWidth) / 2
-      const trunkY = obstacle.y + obstacle.height - trunkHeight
-      const canopyRadius = obstacle.width * 0.55
-      const canopyX = obstacle.x + obstacle.width / 2
-      const canopyY = obstacle.y + canopyRadius
-
-      // Trunk
-      const trunkGradient = ctx.createLinearGradient(trunkX, trunkY, trunkX, trunkY + trunkHeight)
-      trunkGradient.addColorStop(0, '#8D5A2B')
-      trunkGradient.addColorStop(1, '#5A3A1C')
-      ctx.fillStyle = trunkGradient
-      ctx.fillRect(trunkX, trunkY, trunkWidth, trunkHeight)
-      ctx.strokeStyle = '#3E2611'
-      ctx.lineWidth = 1.5
-      ctx.strokeRect(trunkX, trunkY, trunkWidth, trunkHeight)
-
-      // Canopy
-      const canopyGradient = ctx.createRadialGradient(
-        canopyX,
-        canopyY,
-        4,
-        canopyX,
-        canopyY,
-        canopyRadius
-      )
-      canopyGradient.addColorStop(0, '#66BB6A')
-      canopyGradient.addColorStop(1, '#2E7D32')
-      ctx.fillStyle = canopyGradient
-      ctx.beginPath()
-      ctx.arc(canopyX, canopyY, canopyRadius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = '#1B5E20'
-      ctx.lineWidth = 2
-      ctx.stroke()
-    })
 
     // Draw coins
     ctx.fillStyle = '#FFD700'
