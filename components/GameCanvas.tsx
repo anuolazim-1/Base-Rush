@@ -93,6 +93,8 @@ export function GameCanvas({
           engine.jump()
           playTone(420, 120, 'square', 0.05)
         }
+      } else if (e.key === 'h' || e.key === 'H') {
+        engine.toggleHitboxDebug()
       } else if (e.key === 'p' || e.key === 'P') {
         engine.togglePause()
         setIsPaused(engine.getState().isPaused)

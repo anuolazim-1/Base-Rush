@@ -96,6 +96,8 @@ export class GameEngine {
   private spriteError: boolean = false
   private spriteFrame: number = 0
   private spriteFrameTimer: number = 0
+  private airborneFrame: number | null = null
+  private debugHitbox: boolean = false
 
   constructor(canvas: HTMLCanvasElement, config?: Partial<GameConfig>, events?: GameEngineEvents) {
     this.canvas = canvas
@@ -201,6 +203,7 @@ export class GameEngine {
     this.postGameEffectTime = 0
     this.spriteFrame = 0
     this.spriteFrameTimer = 0
+    this.airborneFrame = null
 
     this.lastFrameTime = performance.now()
     this.gameLoop(this.lastFrameTime)
@@ -296,6 +299,14 @@ export class GameEngine {
 
   private updateSpriteAnimation(deltaTime: number) {
     if (!this.state.isPlaying || this.state.isPaused || this.state.isGameOver) return
+    if (this.player.isJumping) {
+      if (this.airborneFrame === null) {
+        this.airborneFrame = this.spriteFrame
+      }
+      return
+    }
+
+    this.airborneFrame = null
     const baseFrameMs = 120
     const speedFactor = Math.max(1, this.gameSpeed / this.config.initialSpeed)
     const frameDuration = baseFrameMs / speedFactor
@@ -512,14 +523,17 @@ export class GameEngine {
       const rows = 2
       const frameWidth = this.spriteImage.width / columns
       const frameHeight = this.spriteImage.height / rows
-      const frameX = (this.spriteFrame % columns) * frameWidth
-      const frameY = Math.floor(this.spriteFrame / columns) * frameHeight
+      const activeFrame = this.player.isJumping && this.airborneFrame !== null
+        ? this.airborneFrame
+        : this.spriteFrame
+      const frameX = (activeFrame % columns) * frameWidth
+      const frameY = Math.floor(activeFrame / columns) * frameHeight
 
-      const scale = 1.4
+      const scale = 1.6
       const drawWidth = this.player.width * scale
       const drawHeight = this.player.height * scale
-      const drawX = this.player.x - (drawWidth - this.player.width) / 2
-      const drawY = this.player.y - (drawHeight - this.player.height)
+      const drawX = this.player.x + this.player.width / 2 - drawWidth / 2
+      const drawY = this.player.y + this.player.height - drawHeight
 
       ctx.drawImage(
         this.spriteImage,
@@ -541,6 +555,14 @@ export class GameEngine {
       ctx.strokeStyle = '#7FA6FF'
       ctx.lineWidth = 2
       ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
+    }
+
+    if (this.debugHitbox) {
+      ctx.save()
+      ctx.strokeStyle = '#FFD700'
+      ctx.lineWidth = 2
+      ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height)
+      ctx.restore()
     }
 
     // Draw obstacles (tree shapes)
@@ -662,6 +684,10 @@ export class GameEngine {
    */
   handleResize() {
     this.setupCanvas()
+  }
+
+  toggleHitboxDebug() {
+    this.debugHitbox = !this.debugHitbox
   }
 
   private spawnCoinEffect(coin: Coin) {
