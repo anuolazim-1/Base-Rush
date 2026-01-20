@@ -59,7 +59,7 @@ export function GameOverScreen({
       return
     }
     if (!hasFirebaseConfig()) {
-      setSaveError('Score saving is unavailable. Firebase configuration is missing.')
+      setSaveError('Save failed: missing-firebase-config. Configure Firebase to save scores.')
       return
     }
 
@@ -94,17 +94,14 @@ export function GameOverScreen({
         setIsNewRecord(true)
       }
     } catch (error) {
-      console.error('Error saving score:', error)
       const errorMessage = (error as { message?: string; code?: string })?.message || ''
-      const errorCode = (error as { code?: string })?.code || ''
+      const errorCode = (error as { code?: string })?.code || 'unknown'
+      console.error('Score save failed:', { code: errorCode, message: errorMessage, error })
 
-      if (errorCode === 'permission-denied' || errorMessage.includes('permission')) {
-        setSaveError('Failed to save score. Firestore rules may be blocking writes.')
-      } else if (errorMessage.includes('Missing Firebase env vars')) {
-        setSaveError('Failed to save score. Firebase configuration is missing.')
-      } else {
-        setSaveError('Failed to save score. Please try again.')
-      }
+      const friendlyMessage = errorMessage
+        ? `Save failed: ${errorCode} - ${errorMessage}`
+        : `Save failed: ${errorCode}`
+      setSaveError(friendlyMessage)
     } finally {
       setIsSaving(false)
     }
@@ -252,8 +249,14 @@ export function GameOverScreen({
           <div className="save-status error">
             <p>{saveError}</p>
             <button onClick={handleSaveScore} className="btn-secondary btn-small">
-              Retry
+              Retry Save
             </button>
+          </div>
+        )}
+
+        {isGuest && (
+          <div className="save-status">
+            <p>Connect wallet to save globally.</p>
           </div>
         )}
 
