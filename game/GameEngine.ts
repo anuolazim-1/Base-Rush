@@ -92,6 +92,7 @@ export class GameEngine {
 
   // Sprite rendering
   private spriteImage: HTMLImageElement | null = null
+  private spriteCanvas: HTMLCanvasElement | null = null
   private spriteReady: boolean = false
   private spriteError: boolean = false
   private spriteFrame: number = 0
@@ -150,12 +151,47 @@ export class GameEngine {
       this.spriteImage = new Image()
       this.spriteImage.src = '/runner-sprite.png'
       this.spriteImage.onload = () => {
+        this.prepareSpriteCanvas()
         this.spriteReady = true
       }
       this.spriteImage.onerror = () => {
         this.spriteError = true
       }
     }
+  }
+
+  private prepareSpriteCanvas() {
+    if (!this.spriteImage) return
+    if (typeof document === 'undefined') return
+
+    const offscreen = document.createElement('canvas')
+    offscreen.width = this.spriteImage.width
+    offscreen.height = this.spriteImage.height
+    const ctx = offscreen.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(this.spriteImage, 0, 0)
+
+    const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height)
+    const data = imageData.data
+    const bgR = data[0]
+    const bgG = data[1]
+    const bgB = data[2]
+    const tolerance = 12
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const isBg = Math.abs(r - bgR) <= tolerance &&
+        Math.abs(g - bgG) <= tolerance &&
+        Math.abs(b - bgB) <= tolerance
+      if (isBg) {
+        data[i + 3] = 0
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0)
+    this.spriteCanvas = offscreen
   }
 
   private setupCanvas() {
@@ -517,12 +553,13 @@ export class GameEngine {
     ctx.fillRect(0, groundY, width, height - groundY)
 
     // Draw player
-    if (this.spriteImage && this.spriteReady && !this.spriteError) {
+    if ((this.spriteCanvas || this.spriteImage) && this.spriteReady && !this.spriteError) {
       ctx.imageSmoothingEnabled = false
       const columns = 4
       const rows = 2
-      const frameWidth = this.spriteImage.width / columns
-      const frameHeight = this.spriteImage.height / rows
+      const source = this.spriteCanvas ?? this.spriteImage!
+      const frameWidth = source.width / columns
+      const frameHeight = source.height / rows
       const activeFrame = this.player.isJumping && this.airborneFrame !== null
         ? this.airborneFrame
         : this.spriteFrame
@@ -536,7 +573,7 @@ export class GameEngine {
       const drawY = this.player.y + this.player.height - drawHeight
 
       ctx.drawImage(
-        this.spriteImage,
+        source,
         frameX,
         frameY,
         frameWidth,
