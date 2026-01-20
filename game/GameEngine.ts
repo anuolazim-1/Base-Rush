@@ -322,13 +322,14 @@ export class GameEngine {
   }
 
   private updateSpawning(deltaTime: number) {
-    const gracePeriodMs = 3500
-    const earlyRampMs = 15000
-    const midRampMs = 45000
-    const gapEarly = 500
-    const gapMid = 360
-    const gapLate = 260
-    const gapFloor = 220
+    const gracePeriodMs = 2600
+    const graceDistance = 180
+    const earlyRampMs = 14000
+    const midRampMs = 42000
+    const gapEarly = 520
+    const gapMid = 380
+    const gapLate = 300
+    const gapFloor = 260
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t
     const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
@@ -341,17 +342,18 @@ export class GameEngine {
       const midProgress = clamp01((timeSinceGrace - earlyRampMs) / (midRampMs - earlyRampMs))
       targetGap = lerp(gapMid, gapLate, midProgress)
     } else {
-      const lateProgress = clamp01((timeSinceGrace - midRampMs) / 30000)
+      const lateProgress = clamp01((timeSinceGrace - midRampMs) / 35000)
       targetGap = lerp(gapLate, gapFloor, lateProgress)
     }
 
-    // Grace period before first obstacle
-    if (this.elapsedTimeMs < gracePeriodMs) {
+    // Grace period before first obstacle (time + distance)
+    if (this.elapsedTimeMs < gracePeriodMs || this.state.distance < graceDistance) {
       return
     }
 
     this.obstacleDistanceSinceLast += this.gameSpeed * (deltaTime / 16)
-    if (this.obstacleDistanceSinceLast >= Math.max(targetGap, gapFloor)) {
+    const minGap = Math.max(targetGap, gapFloor)
+    if (this.obstacleDistanceSinceLast >= minGap) {
       this.spawnObstacle()
       this.obstacleDistanceSinceLast = 0
     }
