@@ -1,6 +1,6 @@
 # Base Rush 🏃‍♂️
 
-**Live Demo:** [https://base-rush.vercel.a](https://base-rush-tg9s.vercel.app/)
+**Live Demo:** https://base-rush-tg9s.vercel.app/
 
 ## About Base Rush
 
