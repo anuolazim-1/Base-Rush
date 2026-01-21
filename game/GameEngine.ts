@@ -119,12 +119,12 @@ export class GameEngine {
 
     // Default game configuration
     this.config = {
-      initialSpeed: 3,
+      initialSpeed: 2.4,
       speedIncrement: 0.001,
       obstacleSpawnRate: 120, // frames between obstacles
       coinSpawnRate: 60, // frames between coins
-      gravity: 0.6,
-      jumpVelocity: -15,
+      gravity: 0.65,
+      jumpVelocity: -13.5,
       ...config,
     }
 
@@ -363,7 +363,11 @@ export class GameEngine {
     // Update score and difficulty
     this.state.distance += this.gameSpeed * (deltaTime / 16) // Normalize to 60fps
     this.state.score = Math.floor(this.state.distance / 10) + this.state.coins * 10
-    this.gameSpeed += this.config.speedIncrement
+    if (this.state.distance >= 5000) {
+      const ramp = Math.min(1, (this.state.distance - 5000) / 3000)
+      const rampFactor = 0.35 + 0.65 * ramp
+      this.gameSpeed += this.config.speedIncrement * rampFactor
+    }
     this.state.speed = this.gameSpeed
 
     // Update effects

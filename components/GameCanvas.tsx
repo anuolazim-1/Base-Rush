@@ -24,12 +24,15 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<GameEngine | null>(null)
+  const engineInitializedRef = useRef(false)
   const [isPaused, setIsPaused] = useState(false)
   const [currentScore, setCurrentScore] = useState(0)
   const [currentCoins, setCurrentCoins] = useState(0)
   const [currentDistance, setCurrentDistance] = useState(0)
   const [currentSpeed, setCurrentSpeed] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
+  const [spriteReady, setSpriteReady] = useState(false)
+  const [spriteError, setSpriteError] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
   const muteHydratedRef = useRef(false)
 
@@ -70,8 +73,22 @@ export function GameCanvas({
   )
 
   useEffect(() => {
+    const image = new Image()
+    image.src = '/runner-sprite.png'
+    image.onload = () => {
+      setSpriteReady(true)
+    }
+    image.onerror = () => {
+      setSpriteError(true)
+    }
+  }, [])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    if (!spriteReady && !spriteError) return
+    if (engineInitializedRef.current) return
+    engineInitializedRef.current = true
 
     const events: GameEngineEvents = {
       onCoinCollected: () => {
@@ -162,11 +179,13 @@ export function GameCanvas({
       }
     }
     window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleResize)
       canvas.removeEventListener('touchstart', handleTouchStart)
       canvas.removeEventListener('touchend', handleTouchEnd)
       clearInterval(stateInterval)
@@ -174,7 +193,7 @@ export function GameCanvas({
         engine.destroy()
       }
     }
-  }, [stableOnGameStateChange, initAudio, playTone])
+  }, [stableOnGameStateChange, initAudio, playTone, spriteReady, spriteError])
 
   useEffect(() => {
     if (!autoStart) return
@@ -271,7 +290,14 @@ export function GameCanvas({
         className="game-canvas"
       />
 
-      {!state?.isPlaying && !state?.isGameOver && (
+      {!spriteReady && !spriteError && (
+        <div className="game-start-overlay overlay-fade-in">
+          <h2>Loading runner...</h2>
+          <p>Preparing pixel sprite.</p>
+        </div>
+      )}
+
+      {!state?.isPlaying && !state?.isGameOver && spriteReady && (
         <div className="game-start-overlay overlay-fade-in">
           <h2>Base Rush</h2>
           <p>Press SPACE or tap to jump</p>
